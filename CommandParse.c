@@ -51,15 +51,39 @@ void InitCmdList() {// cmd를 linked list로 초기화
 		CmdList = newnode;
 	}
 }
-void trim(char* start, char*end, char* ptr){
-	for(int i=0;start<=ptr-i;i++){
-		if(*(ptr-i)==' ')
-			*(ptr-i)='\0';
+char* Strtrim(char* str){
+	char* s=str;
+	char* e=str+strlen(str)-1;
+	char* ret;
+	for(int i=0;s+i<=e;i++){
+		if(*(s+i)==' '||*(s+i)=='\t')
+			*(s+i)='\0';
+		else{
+			ret=s+i;
+			break;
+		}
 	}
-	for(int i=0;ptr+i<=end;i++)
-		if(*(ptr+i)==' ')
+	for(int i=0;s<=e-i;i++){
+		if(*(e-i)==' '||*(e-i)=='\t')
+			*(e-i)='\0';
+		else
+			break;
+	}
+	return ret;
+}
+void trim(char* start, char* end, char* ptr){
+	for(int i=1;start<=ptr-i;i++){
+		if(*(ptr-i)==' '||*(ptr-i)=='\t')
+			*(ptr-i)='\0';
+		else
+			break;
+	}
+	for(int i=1;ptr+i<=end;i++){
+		if(*(ptr+i)==' '||*(ptr+i)=='\t')
 			*(ptr+i)='\0';
-
+		else 
+			break;
+	}
 }
 int CmdParser(char input[], char argv[][ARGV_MAX_LEN], char* delimit) {
 	char* token;
@@ -71,32 +95,37 @@ int CmdParser(char input[], char argv[][ARGV_MAX_LEN], char* delimit) {
 	char parsed_str[INPUT_MAX_LEN];
 	char* commaptr[ARGC_MAX];
 	int comma_num=0;
-	start_ptr=trim(input);/////////////////수정
+	start_ptr=Strtrim(input);/////////////////수정
 	len=strlen(start_ptr);
+	end_ptr=start_ptr+len-1;
 	ptr=strchr(start_ptr,',');
 	while(ptr!=NULL){
-		commaptr[comma_num++] = ptr;
-		ptr=strchr(ptr,',');
+		commaptr[comma_num++] = ptr;	
+		ptr=strchr(ptr+1,',');
 	}
 	for(int i=0;i<comma_num;i++){
-		trim(commaptr[i]);
+		trim(start_ptr,end_ptr,commaptr[i]);
 	}
 	int idx=0;
 	for(int i=0;i<len;i++){
-		if(start_ptr[i]=='\0')continue;
+		if(start_ptr[i]=='\0')
+			continue;
 		parsed_str[idx++]=start_ptr[i];
+		if(start_ptr[i]==' ')
+			printf("*");
+		else if(start_ptr[i]=='\t')
+			printf("****");
+		else
+			printf("%c",start_ptr[i]);
 	}
-	parsed_str[idx]='\0'
+	parsed_str[idx]='\0';
 	token = strtok(parsed_str,delimit);
-	while(token!=NULL){
-		strcpy(argv[argc],token);
-		argc++;
-		token=strtok(NULL,',');
-	}/*
-	start_ptr=temp;
-	end_ptr=strchr(temp,',');
+	strcpy(argv[0],token);
+	argc++;
+	start_ptr=strtok(NULL,"\0");
+	end_ptr=strchr(start_ptr,',');
 	while(end_ptr!=NULL){
-		*end_ptr='\0';
+		*ptr='\0';
 		if(start_ptr==end_ptr){
 			argc=-1;
 			return argc;
@@ -106,13 +135,6 @@ int CmdParser(char input[], char argv[][ARGV_MAX_LEN], char* delimit) {
 		start_ptr=end_ptr+1;
 		end_ptr=strchr(start_ptr,',');
 	}
-	if(*start_ptr!='\0'){
-		strcpy(argv[argc],start_ptr);
-		argc++;
-	}
-	for(int i=0;i<argc;i++){
-		printf("%s\n",argv[i]);
-	}*/
 	return argc;
 }
 int InputCategorize(char argv[][ARGV_MAX_LEN], int argc, int* cmdcase) {
