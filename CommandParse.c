@@ -51,21 +51,48 @@ void InitCmdList() {// cmd를 linked list로 초기화
 		CmdList = newnode;
 	}
 }
+void trim(char* start, char*end, char* ptr){
+	for(int i=0;start<=ptr-i;i++){
+		if(*(ptr-i)==' ')
+			*(ptr-i)='\0';
+	}
+	for(int i=0;ptr+i<=end;i++)
+		if(*(ptr+i)==' ')
+			*(ptr+i)='\0';
+
+}
 int CmdParser(char input[], char argv[][ARGV_MAX_LEN], char* delimit) {
 	char* token;
 	char* start_ptr;
 	char* end_ptr;
+	char* ptr;
+	int len;
 	int argc = 0;
-	char temp[INPUT_MAX_LEN]="";
-	token = strtok(input,delimit);	
-	strcpy(argv[0],token);
-	argc++;
-	token=strtok(NULL,delimit);
-	while (token!=NULL) {
-		strcat(temp,token);
-		token=strtok(NULL,delimit);
+	char parsed_str[INPUT_MAX_LEN];
+	char* commaptr[ARGC_MAX];
+	int comma_num=0;
+	start_ptr=trim(input);/////////////////수정
+	len=strlen(start_ptr);
+	ptr=strchr(start_ptr,',');
+	while(ptr!=NULL){
+		commaptr[comma_num++] = ptr;
+		ptr=strchr(ptr,',');
 	}
-	printf("%s\n",temp);
+	for(int i=0;i<comma_num;i++){
+		trim(commaptr[i]);
+	}
+	int idx=0;
+	for(int i=0;i<len;i++){
+		if(start_ptr[i]=='\0')continue;
+		parsed_str[idx++]=start_ptr[i];
+	}
+	parsed_str[idx]='\0'
+	token = strtok(parsed_str,delimit);
+	while(token!=NULL){
+		strcpy(argv[argc],token);
+		argc++;
+		token=strtok(NULL,',');
+	}/*
 	start_ptr=temp;
 	end_ptr=strchr(temp,',');
 	while(end_ptr!=NULL){
@@ -85,7 +112,7 @@ int CmdParser(char input[], char argv[][ARGV_MAX_LEN], char* delimit) {
 	}
 	for(int i=0;i<argc;i++){
 		printf("%s\n",argv[i]);
-	}
+	}*/
 	return argc;
 }
 int InputCategorize(char argv[][ARGV_MAX_LEN], int argc, int* cmdcase) {

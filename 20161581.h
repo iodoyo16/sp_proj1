@@ -67,6 +67,7 @@ int last_idx;
 // function
 int Parser(char input[], char argv[][ARGV_MAX_LEN], char* delimit);
 int CmdParser(char input[], char argv[][ARGV_MAX_LEN], char* delimit);
+void trim(char* s,char* e, char* str);
 void InitCmdList();// cmd를 linked list로 초기화
 int InputArgsCheck(char argv[][ARGV_MAX_LEN],int argc,int cmdcase);
 void CmdArgsCat(int argc, char argv[][ARGV_MAX_LEN], char str[]);
