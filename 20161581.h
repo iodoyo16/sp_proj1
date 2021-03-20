@@ -4,11 +4,10 @@
 #include<sys/stat.h>
 #include<string.h>
 #include<stdlib.h>
+#include<dirent.h>
 //GENERAL USE
 #define TRUE 1
 #define FALSE 0
-#define MAX(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a > _b ? _a : _b; })  
-#define MIN(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a < _b ? _a : _b; }) 
 // input, argv, argc, instruction, cmd MAX len OR num
 #define INPUT_MAX_LEN 100
 #define ARGV_MAX_LEN 100
@@ -17,6 +16,7 @@
 #define CMD_LEN 100
 #define CMD_NUM 100
 #define MNEMONIC_LEN 100
+#define DIRNAME_LEN 20
 // INPUT CASE num
 #define VALID_CMD 0
 #define DONE 1
@@ -66,7 +66,7 @@ OpcodeNode* HashTable[TABLE_SIZE];
 int last_idx;
 // function
 int Parser(char input[], char argv[][ARGV_MAX_LEN], char* delimit);
-int StrParser(char input[], char argv[][ARGV_MAX_LEN], char* delimit);
+int CmdParser(char input[], char argv[][ARGV_MAX_LEN], char* delimit);
 void InitCmdList();// cmd를 linked list로 초기화
 int InputArgsCheck(char argv[][ARGV_MAX_LEN],int argc,int cmdcase);
 void CmdArgsCat(int argc, char argv[][ARGV_MAX_LEN], char str[]);
@@ -74,8 +74,8 @@ int InputCategorize(char argv[][ARGV_MAX_LEN], int argc, int* cmdcase);
 void FuncExecute(int cmdcase, char argv[][ARGV_MAX_LEN],int argc);
 
 
-void Help(); // help 커맨드 수행
-void PrintDir();
+void Help();
+void Dir();
 void Quit();
 void WriteHistory(char str[]);
 void PrintHistory(CmdHistoryNode*);

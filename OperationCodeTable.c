@@ -1,7 +1,7 @@
 #include "20161581.h"
 int HashFunction(char mnemonic[]) {
 	int hash=201;
-	for (int i = 0; i < mnemonic[i] != '\0'; i++)
+	for (int i = 0; mnemonic[i] != '\0'; i++)
 		hash = (hash<<3)^ mnemonic[i];
 	return hash % TABLE_SIZE;
 }

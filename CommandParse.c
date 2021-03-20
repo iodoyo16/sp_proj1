@@ -10,7 +10,7 @@ char arrCmd[CMD_NUM][CMD_LEN] = {
 	{"reset"},
 	{"opcode"},
 	{"opcodelist"},
-	0,
+	{0},
 };
 char arrCmdPrint[CMD_NUM][CMD_LEN] = {
 	{"h[elp]"},
@@ -23,7 +23,7 @@ char arrCmdPrint[CMD_NUM][CMD_LEN] = {
 	{"reset"},
 	{"opcode mnemonic"},
 	{"opcodelist"},
-	0
+	{0},
 };
 int arrCmdNum[CMD_NUM] = {
 	HELP_NUM , HELP_NUM ,
@@ -51,19 +51,46 @@ void InitCmdList() {// cmd를 linked list로 초기화
 		CmdList = newnode;
 	}
 }
-int StrParser(char input[], char argv[][ARGV_MAX_LEN], char* delimit) {
+int CmdParser(char input[], char argv[][ARGV_MAX_LEN], char* delimit) {
 	char* token;
+	char* start_ptr;
+	char* end_ptr;
 	int argc = 0;
-	token = strtok(input, delimit);
-	while (token != NULL) {
-		strcpy(argv[argc], token);
+	char temp[INPUT_MAX_LEN]="";
+	token = strtok(input,delimit);	
+	strcpy(argv[0],token);
+	argc++;
+	token=strtok(NULL,delimit);
+	while (token!=NULL) {
+		strcat(temp,token);
+		token=strtok(NULL,delimit);
+	}
+	printf("%s\n",temp);
+	start_ptr=temp;
+	end_ptr=strchr(temp,',');
+	while(end_ptr!=NULL){
+		*end_ptr='\0';
+		if(start_ptr==end_ptr){
+			argc=-1;
+			return argc;
+		}
+		strcpy(argv[argc],start_ptr);
 		argc++;
-		token = strtok(NULL, delimit);
+		start_ptr=end_ptr+1;
+		end_ptr=strchr(start_ptr,',');
+	}
+	if(*start_ptr!='\0'){
+		strcpy(argv[argc],start_ptr);
+		argc++;
+	}
+	for(int i=0;i<argc;i++){
+		printf("%s\n",argv[i]);
 	}
 	return argc;
 }
 int InputCategorize(char argv[][ARGV_MAX_LEN], int argc, int* cmdcase) {
 	char str[INPUT_MAX_LEN];
+	if(argc==-1)return INPUT_ERROR;
 	if (argc == 0)return PROMPT;// 아무런 입력 x
 	for (CmdNode* curnode = CmdList; curnode != NULL; curnode = curnode->next) {
 		if (strcmp(curnode->str, argv[0]) == 0) {
@@ -185,9 +212,9 @@ void FuncExecute(int cmdcase, char argv[][ARGV_MAX_LEN],int argc) {
 	case HELP_NUM:
 		Help();
 		break;
-	//case DIR_NUM:
-		//PrintDir();
-		//break;
+	case DIR_NUM:
+		Dir();
+		break;
 	case QUIT_NUM:
 		Quit();
 		break;
