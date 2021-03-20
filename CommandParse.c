@@ -84,14 +84,16 @@ void trim(char* start, char* end, char* ptr){
 		else 
 			break;
 	}
-}
+}/*
+void TrimAroundComma(char parsed_str[],char* s, char* e){
+
+}*/
 int CmdParser(char input[], char argv[][ARGV_MAX_LEN], char* delimit) {
 	char* token;
 	char* start_ptr;
 	char* end_ptr;
 	char* ptr;
-	int len;
-	int argc = 0;
+	int len,parsed_len,argc = 0;
 	char parsed_str[INPUT_MAX_LEN];
 	char* commaptr[ARGC_MAX];
 	int comma_num=0;
@@ -111,21 +113,20 @@ int CmdParser(char input[], char argv[][ARGV_MAX_LEN], char* delimit) {
 		if(start_ptr[i]=='\0')
 			continue;
 		parsed_str[idx++]=start_ptr[i];
-		if(start_ptr[i]==' ')
-			printf("*");
-		else if(start_ptr[i]=='\t')
-			printf("****");
-		else
-			printf("%c",start_ptr[i]);
 	}
 	parsed_str[idx]='\0';
+//	printf("%s\n",parsed_str);	
+	parsed_len=strlen(parsed_str);
 	token = strtok(parsed_str,delimit);
+//	printf("%s\n",token);
+	if(token==NULL)return argc;
 	strcpy(argv[0],token);
 	argc++;
 	start_ptr=strtok(NULL,"\0");
+	if(start_ptr==NULL)return argc;
 	end_ptr=strchr(start_ptr,',');
 	while(end_ptr!=NULL){
-		*ptr='\0';
+		*end_ptr='\0';
 		if(start_ptr==end_ptr){
 			argc=-1;
 			return argc;
@@ -133,8 +134,18 @@ int CmdParser(char input[], char argv[][ARGV_MAX_LEN], char* delimit) {
 		strcpy(argv[argc],start_ptr);
 		argc++;
 		start_ptr=end_ptr+1;
+		if(start_ptr>parsed_str+parsed_len-1)
+			break;
 		end_ptr=strchr(start_ptr,',');
 	}
+	if(*start_ptr!='\0'){
+		strcpy(argv[argc],start_ptr);
+		argc++;
+	}
+	
+	//printf("%d\n",argc);
+	//for(int i=0;i<argc;i++)
+	//	printf("%s\n",argv[i]);
 	return argc;
 }
 int InputCategorize(char argv[][ARGV_MAX_LEN], int argc, int* cmdcase) {
