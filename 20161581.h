@@ -87,7 +87,7 @@ typedef struct _LstNode{
 	char label[ARGV_MAX_LEN];
 	char mnemonic[ARGV_MAX_LEN];
 	char operand[ARGV_MAX_LEN];
-	long long opcode;
+	long long object_code;
 	char str[INPUT_MAX_LEN];
 	struct _LstNode* next;
 	struct _LstNode* prev;
@@ -154,10 +154,13 @@ void TypeFile(char argv[][ARGV_MAX_LEN]);
 void AssembleFile(char argv[][ARGV_MAX_LEN]);
 int PassOne(FILE* fp,int* program_len, char program_name[]);
 int PassTwo();
-void AddLstNode(int haslabel, int iscomment,int locctr,int argc,char str[],char label[],char mnemonic[],char operand[]);
+void AddLstNode(int haslabel, int iscomment,int locctr,int argc,char str[],char asm_argv[][ARGV_MAX_LEN],int inst_size);
 int InstructionMemorySize(char mnemonic[],char operand[]);
 int InsertSymbol(char label[],int locctr);
-
+void InitSymTab();
+void PrintError(int flag);
+void EraseSymTab(SymbolNode* thislist);
+void EraseLstList(LstNode* thislist);
 
 
 

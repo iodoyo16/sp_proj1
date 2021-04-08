@@ -16,7 +16,10 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	prev_symtab=SymbolList;
 	LstList=NULL;
 	SymbolList=NULL;
-
+	InitSymTab();
+	printf("before\n");
+	for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next)
+		printf("%04X %s\n",temp->locctr,temp->str);
 	err_flag=PassOne(fp,&program_len,program_name);
 	printf("flag: %d\n",err_flag);
 	if(err_flag<0){
@@ -25,17 +28,17 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 		PrintError(err_flag);
 		LstList=prev_lst;
 		SymbolList=prev_symtab;
-		return;
 	}
 	else{
 		EraseLstList(prev_lst);
 		EraseSymTab(prev_symtab);
 	}
-	//for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next)
-		//printf("%04X %s\n",temp->locctr,temp->str);
-	//for(LstNode* temp=LstList;temp!=NULL;temp=temp->next)
-		//printf("%04X %10s %10s %10s\n",temp->locctr,temp->label,temp->mnemonic,temp->operand);
-	err_flag=PassTwo();
+	printf("after\n");
+	for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next)
+		printf("%04X %s\n",temp->locctr,temp->str);
+	for(LstNode* temp=LstList;temp!=NULL;temp=temp->next)
+		printf("%04X %10s %10s %10s\n",temp->locctr,temp->label,temp->mnemonic,temp->operand);
+	//err_flag=PassTwo();
 //	WriteLstfile();
 //	WriteObjectfile();
 }
@@ -51,6 +54,7 @@ int PassOne(FILE* fp,int* program_len, char program_name[]){
 	int asm_argc=0;
 	int label_idx, mnemonic_idx, operand_idx;//operand could be many?
 	while(fgets(input,INPUT_MAX_LEN,fp)!=NULL){
+		inst_size=0;
 		if(strlen(input)!=0)
 			input[strlen(input)-1]='\0';
 
@@ -94,7 +98,7 @@ int PassOne(FILE* fp,int* program_len, char program_name[]){
 				if(!MemoryAddressCheck(operand))
 					return MEMORY_ADDRESS_ERROR;///////////
 				start_address=locctr=strtol(operand,NULL,16);
-				AddLstNode(haslabel,iscomment,locctr,asm_argc,input,label,mnemonic,operand,inst_size);
+				AddLstNode(haslabel,iscomment,locctr,asm_argc,input,asm_argv,inst_size);
 				if(haslabel){
 					int already_exist=InsertSymbol(label,locctr);//program name insert
 					if(already_exist)
@@ -109,7 +113,7 @@ int PassOne(FILE* fp,int* program_len, char program_name[]){
 					InsertSymbol(label,locctr);
 				}
 				*program_len = locctr - start_address;
-				AddLstNode(haslabel,iscomment,-1,asm_argc,input,label,mnemonic,operand,inst_size);
+				AddLstNode(haslabel,iscomment,-1,asm_argc,input,asm_argv,inst_size);
 				break;
 			}
 			else if(strcmp(mnemonic,"BASE")==0){
@@ -119,7 +123,7 @@ int PassOne(FILE* fp,int* program_len, char program_name[]){
 					InsertSymbol(label,-1);
 				}
 				//do something base do
-				AddLstNode(haslabel,iscomment,-1,asm_argc,input,label,mnemonic,operand,inst_size);
+				AddLstNode(haslabel,iscomment,-1,asm_argc,input,asm_argv,inst_size);
 			}
 			else{
 				if(haslabel){
@@ -134,15 +138,16 @@ int PassOne(FILE* fp,int* program_len, char program_name[]){
 					inst_size=InstructionMemorySize(mnemonic,operand);
 				if(inst_size==WRONG_OPERAND||inst_size==WRONG_MNEMONIC)
 					return inst_size;
-				AddLstNode(haslabel,iscomment,locctr,asm_argc,input,label,mnemonic,operand,inst_size);
+				AddLstNode(haslabel,iscomment,locctr,asm_argc,input,asm_argv,inst_size);
 			}
 		}
 		locctr+=inst_size;
 	}
 	return 0; //no error
 }
-
+/*
 int PassTwo(){
+	
 	LstNode* lst_reader=LstList;
 	while(lst_reader!=NULL){
 		if(lst_reader->next!=NULL)
@@ -151,24 +156,73 @@ int PassTwo(){
 			break;
 	}
 	while(lst_reader!=NULL){
+		char mnemonic[ARGV_MAX_LEN];
+		strcpy(mnemonic,lst_reader->mnemonic);
 		int pc=lst_reader->locctr+lst_reader->format;
 		int disp;
-		if(strcmp("START",lst_reader->mnemonic)==0){
+		if(strcmp("START",mnemonic)==0){
 			//write headline
 		}
-		else if(strcmp("END",lst_reader->mnemonic)==0){
+		else if(strcmp("END",mnemonic)==0){
 			//write endrecord
 			break;
 		}
+	//	else if(assembler directives){
+	//		opcode=-1; object_code=-1
+	//	}
 		else{
+			OpcodeNode* opnode=GetOpcodeNodeByMnemonic(mnemonic);
+			lst_reader->object_code=opnode->opcode;
+			//pc relative b=0, p=1 disp(signed)// calculate memory range
+			//base b=1, p=0 disp(unsigned)
+			//direct b=0 ,p=0 disp(12bit)
 
+			//index address x=1 else x=0
+
+			//immediateaddress n=0, i=1 //look operand 
+			//indirect address n=1, i=0
+			//simple address n=1, i=1
+
+			//std sic(b,p,e is address field) n=0, i=0
+
+			//nixbpe 000000
+
+			//pc relative 000'01'0 = 2
+			//base relative 000'10'0 = 4
+			//direct relative 000'00'0 = 0
+
+			//index mode 00'1'000 =8
+
+			//immediate '01'0000=16
+			//indirect '10'0000=32
+			//simple '11'0000-48
+			//standard sic '00'0000 *bpe is address field
+			int ta=0;
+			if(lst_reader->format==3){
+				lst_reader->object_code<<18;
+				//if()pc relative
+				//else base
+			}
+			else if(lst_reader->format==4){
+				lst_reader->opcode<<26;
+
+			}
+			else if(lst_reader->format==1){
+
+			}
+			else{
+
+			}
 		}
 	}
 	
 }
-
-void AddLstNode(int haslabel,int iscomment,int locctr,int argc,char str[],char label[],char mnemonic[],char operand[],int inst_size){
+*/
+void AddLstNode(int haslabel,int iscomment,int locctr,int argc,char str[],char asm_argv[][ARGV_MAX_LEN],int inst_size){
 	int operandnum;/////////////////
+	int label_idx;
+	int operand_idx;
+	int mnemonic_idx;
 
 	LstNode* newnode=(LstNode*)malloc(sizeof(LstNode));
 	if(newnode==NULL){
@@ -176,21 +230,37 @@ void AddLstNode(int haslabel,int iscomment,int locctr,int argc,char str[],char l
 		exit(0);
 	}
 	operandnum=argc-1;
-	if(haslabel)operandnum--;
-	if(iscomment)operandnum=0;
-
+	if(haslabel){
+		operandnum--;
+		label_idx=0;
+		mnemonic_idx=1;
+		operand_idx=2;
+	}
+	else if(iscomment){
+		label_idx=operand_idx=mnemonic_idx=-1;
+		operandnum=0;
+	}
+	else{
+		label_idx=-1;
+		mnemonic_idx=0;
+		operand_idx=1;
+	}
+	if(operandnum>1){
+		for(int i=1;i<operandnum;i++)
+			strcat(asm_argv[operand_idx],asm_argv[operand_idx+i]);;
+	}
 	strcpy(newnode->str,str);
 	newnode->haslabel=haslabel;
 	newnode->iscomment=iscomment;
 	newnode->locctr=locctr;
 	newnode->operand_num=operandnum;
 	newnode->format=inst_size;
-	strcpy(newnode->mnemonic,mnemonic);
-	strcpy(newnode->label,label);
-	strcpy(newnode->operand,operand);
+	if(label_idx!=-1)strcpy(newnode->label,asm_argv[label_idx]);
+	if(mnemonic_idx!=-1)strcpy(newnode->mnemonic,asm_argv[mnemonic_idx]);
+	if(operand_idx!=-1)strcpy(newnode->operand,asm_argv[operand_idx]);
 	newnode->next=LstList;
-	if(Lstlist!=NULL)
-		Lstlist->prev=newnode;
+	if(LstList!=NULL)
+		LstList->prev=newnode;
 	LstList=newnode;
 	//printf("%X %10s %10s %10s\n",newnode->locctr,newnode->label,newnode->mnemonic,newnode->operand);
 }
@@ -251,7 +321,7 @@ void EraseLstList(LstNode* thislist){
 	}
 }
 void EraseSymTab(SymbolNode* thislist){
-	SymbolNode* tmp=thisList;
+	SymbolNode* tmp=thislist;
 	while(tmp!=NULL){
 		SymbolNode* nxttmp=tmp->next;
 		free(tmp);
