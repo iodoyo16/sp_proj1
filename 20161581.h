@@ -52,6 +52,23 @@
 #define WRONG_OPERAND -6
 #define DUPLICATE_SYMBOL_ERROR -7
 #define MEMORY_ADDRESS_ERROR -8
+
+#define PC_MODE 2//pc relative 000'01'0 = 2
+#define BASE_MODE 4//base relative 000'10'0 = 4
+#define DIRECT_MODE 0//direct relative 000'00'0 = 0
+
+#define INDEX_MODE 8//index mode 00'1'000 =8
+
+#define IMMEDIATE_MODE 16//immediate '01'0000=16
+#define INDIRECT_MODE 32//indirect '10'0000=32
+#define SIMPLE_MODE 48//simple '11'0000=48
+#define STD_MODE 0//standard sic '00'0000 *bpe is address field
+
+#define FORMAT_3 1// format 3 00000'1'
+#define FORMAT_4 0// format 4 00000'0'
+
+
+
 extern char arrCmd[CMD_NUM][CMD_LEN];			// SHELL cmd
 extern char arrCmdPrint[CMD_NUM][CMD_LEN];		// HELP print string
 extern int arrCmdNum[CMD_NUM];					//  CMD NUM matches with CMD string
@@ -86,7 +103,7 @@ typedef struct _LstNode{
 	int format;
 	char label[ARGV_MAX_LEN];
 	char mnemonic[ARGV_MAX_LEN];
-	char operand[ARGV_MAX_LEN];
+	char operand[2][ARGV_MAX_LEN];
 	long long object_code;
 	char str[INPUT_MAX_LEN];
 	struct _LstNode* next;

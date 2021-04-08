@@ -5,6 +5,7 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	LstNode* prev_lst;
 	SymbolNode* prev_symtab;
 	char program_name[ARGV_MAX_LEN];
+	char base_name[ARGV_MAX_LEN];
 	FILE *fp = fopen(argv[1],"r");
 	//printf("%s\n",argv[1]);
 	if(fp==NULL){
@@ -17,10 +18,10 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	LstList=NULL;
 	SymbolList=NULL;
 	InitSymTab();
-	printf("before\n");
-	for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next)
-		printf("%04X %s\n",temp->locctr,temp->str);
-	err_flag=PassOne(fp,&program_len,program_name);
+	//printf("before\n");
+	//for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next)
+	//	printf("%04X %s\n",temp->locctr,temp->str);
+	err_flag=PassOne(fp,&program_len,program_name,base_name);
 	printf("flag: %d\n",err_flag);
 	if(err_flag<0){
 		EraseLstList(LstList);
@@ -33,16 +34,16 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 		EraseLstList(prev_lst);
 		EraseSymTab(prev_symtab);
 	}
-	printf("after\n");
-	for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next)
-		printf("%04X %s\n",temp->locctr,temp->str);
-	for(LstNode* temp=LstList;temp!=NULL;temp=temp->next)
-		printf("%04X %10s %10s %10s\n",temp->locctr,temp->label,temp->mnemonic,temp->operand);
-	//err_flag=PassTwo();
+	//printf("after\n");
+	//for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next)
+	//	printf("%04X %s\n",temp->locctr,temp->str);
+	//for(LstNode* temp=LstList;temp!=NULL;temp=temp->next)
+	//	printf("%04X %10s %10s %10s\n",temp->locctr,temp->label,temp->mnemonic,temp->operand);
+	//err_flag=PassTwo(base_name);
 //	WriteLstfile();
 //	WriteObjectfile();
 }
-int PassOne(FILE* fp,int* program_len, char program_name[]){
+int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[]){
 	//char program_name[ARGV_MAX_LEN];
 	char input[INPUT_MAX_LEN];
 	char asm_argv[ARGC_MAX][ARGV_MAX_LEN];
@@ -81,9 +82,8 @@ int PassOne(FILE* fp,int* program_len, char program_name[]){
 		}
 		char temp[INPUT_MAX_LEN];
 		strcpy(temp,input);//strtok in Parser changes original string
-		asm_argc=Parser(temp,asm_argv," \f\r\t\v\n");
-///////parsing/////
-
+		asm_argc=Parser(temp,asm_argv,", \f\r\t\v\n");
+		///////parsing/////
 		if(asm_argc==1)operand_idx=-1;
 		if(asm_argc!=0){
 			char mnemonic[ARGV_MAX_LEN]="";
@@ -123,6 +123,7 @@ int PassOne(FILE* fp,int* program_len, char program_name[]){
 					InsertSymbol(label,-1);
 				}
 				//do something base do
+				strcpy(base_name,operand);
 				AddLstNode(haslabel,iscomment,-1,asm_argc,input,asm_argv,inst_size);
 			}
 			else{
@@ -145,9 +146,11 @@ int PassOne(FILE* fp,int* program_len, char program_name[]){
 	}
 	return 0; //no error
 }
-/*
-int PassTwo(){
-	
+
+int PassTwo(char base_name[]){
+	SymbolNode* base_sym_node=(FindSymbol(base_name));
+	int base_locctr=base_sym_node->locctr;
+
 	LstNode* lst_reader=LstList;
 	while(lst_reader!=NULL){
 		if(lst_reader->next!=NULL)
@@ -159,7 +162,6 @@ int PassTwo(){
 		char mnemonic[ARGV_MAX_LEN];
 		strcpy(mnemonic,lst_reader->mnemonic);
 		int pc=lst_reader->locctr+lst_reader->format;
-		int disp;
 		if(strcmp("START",mnemonic)==0){
 			//write headline
 		}
@@ -168,39 +170,41 @@ int PassTwo(){
 			break;
 		}
 	//	else if(assembler directives){
-	//		opcode=-1; object_code=-1
+	//		BYTE HAVE OBJECT_CODE
+	//		object_code=-1
 	//	}
 		else{
-			OpcodeNode* opnode=GetOpcodeNodeByMnemonic(mnemonic);
-			lst_reader->object_code=opnode->opcode;
-			//pc relative b=0, p=1 disp(signed)// calculate memory range
-			//base b=1, p=0 disp(unsigned)
-			//direct b=0 ,p=0 disp(12bit)
+			int nixbpe=0;
+			if(lst_reader->operand_num>1)
+				if((lst_reader->operand)[1][0]=='X')
+					nixbpe=nixbpe|INDEX_MODE;			//index address x=1 else x=0
 
-			//index address x=1 else x=0
-
-			//immediateaddress n=0, i=1 //look operand 
-			//indirect address n=1, i=0
-			//simple address n=1, i=1
+			if((lst_reader->operand)[0][0]=='#')
+				nixbpe=nixbpe|IMMEDIATE_MODE;			// immediate addressing
+			else if((lst_reader->operand)[0][0]=='@')
+				nixbpe=nixbpe|INDIRECT_MODE;			// indirect addressing
+			else nixbpe=nixbpe|SIMPLE_MODE;				// simple addressing
+			//pc relative disp(signed)// calculate memory range
+			//base disp(unsigned)
+			//direct disp(12bit)
 
 			//std sic(b,p,e is address field) n=0, i=0
-
-			//nixbpe 000000
-
-			//pc relative 000'01'0 = 2
-			//base relative 000'10'0 = 4
-			//direct relative 000'00'0 = 0
-
-			//index mode 00'1'000 =8
-
-			//immediate '01'0000=16
-			//indirect '10'0000=32
-			//simple '11'0000-48
-			//standard sic '00'0000 *bpe is address field
-			int ta=0;
+			OpcodeNode* opnode=GetOpcodeNodeByMnemonic(mnemonic);
+			int disp,pc_disp,base_disp;//disp=symbol-pc
+			lst_reader->object_code=opnode->opcode;
 			if(lst_reader->format==3){
-				lst_reader->object_code<<18;
-				//if()pc relative
+				(lst_reader->object_code)<<18;				// nixbpe(6) + disp(12)
+				SymbolNode* symbol=FindSymbol(lst_reader->operand[0]);
+				pc_disp=(symbol->locctr)-pc;
+				base_disp=(lst_symbol->locctr)-base_locctr;
+				if(-2048=<pc_disp&&pc_disp<=2047){				//pc relative
+					if(pc_disp<0)
+						pc_disp+=4096;
+					disp=pc_disp;
+				}
+				else if(0<=base_disp&&base_disip<=4095){
+
+				}
 				//else base
 			}
 			else if(lst_reader->format==4){
@@ -217,7 +221,7 @@ int PassTwo(){
 	}
 	
 }
-*/
+
 void AddLstNode(int haslabel,int iscomment,int locctr,int argc,char str[],char asm_argv[][ARGV_MAX_LEN],int inst_size){
 	int operandnum;/////////////////
 	int label_idx;
@@ -245,10 +249,6 @@ void AddLstNode(int haslabel,int iscomment,int locctr,int argc,char str[],char a
 		mnemonic_idx=0;
 		operand_idx=1;
 	}
-	if(operandnum>1){
-		for(int i=1;i<operandnum;i++)
-			strcat(asm_argv[operand_idx],asm_argv[operand_idx+i]);;
-	}
 	strcpy(newnode->str,str);
 	newnode->haslabel=haslabel;
 	newnode->iscomment=iscomment;
@@ -257,7 +257,8 @@ void AddLstNode(int haslabel,int iscomment,int locctr,int argc,char str[],char a
 	newnode->format=inst_size;
 	if(label_idx!=-1)strcpy(newnode->label,asm_argv[label_idx]);
 	if(mnemonic_idx!=-1)strcpy(newnode->mnemonic,asm_argv[mnemonic_idx]);
-	if(operand_idx!=-1)strcpy(newnode->operand,asm_argv[operand_idx]);
+	for(int i=0;i<operandnum;i++)
+		strcpy(newnode->operand,asm_argv[operand_idx+i]);
 	newnode->next=LstList;
 	if(LstList!=NULL)
 		LstList->prev=newnode;
@@ -298,7 +299,7 @@ int InstructionMemorySize(char mnemonic[],char operand[]){
 int InsertSymbol(char label[],int locctr){
 	for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next){
 		if(strcmp(label,temp->str)==0)
-			return 1;
+			return 1;//already exist
 	}
 	SymbolNode* newnode=(SymbolNode*)malloc(sizeof(SymbolNode));
 	if(newnode==NULL){
@@ -311,7 +312,11 @@ int InsertSymbol(char label[],int locctr){
 	SymbolList=newnode;
 	return 0;
 }
-
+SymbolNode* FindSymbol(char label[]){
+	for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next)
+		if(strcmp(label,temp->str)==0)
+			return temp;
+}
 void EraseLstList(LstNode* thislist){
 	LstNode* tmp=thislist;
 	while(tmp!=NULL){
