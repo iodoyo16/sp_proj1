@@ -174,7 +174,8 @@ int PassTwo(char base_name[]){
 	//		object_code=-1
 	//	}
 		else{
-			int nixbpe=0;
+			if(lst_reader->format==3||lst_reader->format==4){
+				int nixbpe=0;
 			if(lst_reader->operand_num>1)
 				if((lst_reader->operand)[1][0]=='X')
 					nixbpe=nixbpe|INDEX_MODE;			//index address x=1 else x=0
@@ -189,12 +190,15 @@ int PassTwo(char base_name[]){
 			//direct disp(12bit)
 
 			//std sic(b,p,e is address field) n=0, i=0
+			}
+			
 			OpcodeNode* opnode=GetOpcodeNodeByMnemonic(mnemonic);
+
 			int disp,pc_disp,base_disp;//disp=symbol-pc
-			lst_reader->object_code=opnode->opcode;
+			SymbolNode* symbol=FindSymbol(lst_reader->operand[0]);
+
 			if(lst_reader->format==3){
-				(lst_reader->object_code)<<18;				// nixbpe(6) + disp(12)
-				SymbolNode* symbol=FindSymbol(lst_reader->operand[0]);
+				lst_reader->object_code=(opnode->opcode)<<18;				// nixbpe(6) + disp(12)
 				pc_disp=(symbol->locctr)-pc;
 				base_disp=(lst_symbol->locctr)-base_locctr;
 				if(-2048=<pc_disp&&pc_disp<=2047){				//pc relative
@@ -202,20 +206,24 @@ int PassTwo(char base_name[]){
 						pc_disp+=4096;
 					disp=pc_disp;
 				}
-				else if(0<=base_disp&&base_disip<=4095){
-
-				}
-				//else base
+				else if(0<=base_disp&&base_disp<=4095)
+					disp=base_disp;
+				else
+					return ERROR;
+				lst_reader->object_code=(lst_reader->object_code)|nixbpe<<12;
+				lst_reader->object_code=(lst_reader->object_code)|disp;
 			}
 			else if(lst_reader->format==4){
-				lst_reader->opcode<<26;
-
+				lst_reader->object_code=(opnode->opcode)<<26;	// address 20 + nixbpe(6)
+				disp=symbol->locctr;
+				lst_reader->object_code=(lst_reader->object_code)|nixbpe<<20;
+				lst_reader->object_code=(lst_reader->object_code)|disp;
 			}
-			else if(lst_reader->format==1){
+			else if(lst_reader->format==2){
 
 			}
 			else{
-
+				lst_reader->opcode=opnode->opcode;
 			}
 		}
 	}
