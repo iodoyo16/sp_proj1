@@ -219,7 +219,7 @@ int PassTwo(char base_name[]){
 			if(lst_reader->format==3){
 				object_code=opnode->opcode;				//
 				object_code=object_code<<16;
-				printf("nixbpe : %d\n",nixbpe);
+				//printf("nixbpe : %d\n",nixbpe);
 				if(imm_val!=-1)
 					disp=imm_val;
 				else{
@@ -239,7 +239,7 @@ int PassTwo(char base_name[]){
 							
 						else
 							return ERROR;
-						printf("disp : %x\n",disp);
+						//printf("disp : %x\n",disp);
 					}
 				}
 				object_code=object_code|(nixbpe<<12);
@@ -257,13 +257,14 @@ int PassTwo(char base_name[]){
 				}
 				object_code=object_code|(nixbpe<<20);
 				lst_reader->object_code=object_code|disp;
-				printf("disp : %d\n",disp);
+				//printf("disp : %d\n",disp);
 			}
 			else if(lst_reader->format==2){
 				for(int i=0;i<lst_reader->operand_num;i++){
-					symbol[i]=FindSymbol(lst_reader->operand[1]);
+					symbol[i]=FindSymbol(lst_reader->operand[i]);
 					/////////////immediate?
 				}
+				//printf("reg : %d\n",symbol[0]->locctr);
 				object_code=opnode->opcode;
 				object_code=(object_code<<8);
 				if(symbol[0]!=NULL)
@@ -282,9 +283,11 @@ int PassTwo(char base_name[]){
 					int i=0;
 					while(lst_reader->operand[0][2+i]!='\0'&&lst_reader->operand[0][2+i]!='\''){
 						object_code=object_code<<8;// hexa 2 digit
-						object_code=object_code|lst_reader->operand[0][2+i];
+						object_code=object_code|(lst_reader->operand)[0][2+i];
+						//printf("byte const : %c\n",lst_reader->operand[0][2+i]);
 						i++;
 					}
+					lst_reader->object_code=object_code;
 				}
 				else if(lst_reader->operand[0][0]=='X'){
 					int i=0;
@@ -300,7 +303,6 @@ int PassTwo(char base_name[]){
 			}
 			else
 				lst_reader->object_code=-1;
-			
 		}
 		lst_reader=lst_reader->prev;
 	}
