@@ -23,7 +23,7 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	InitSymTab();
 	err_flag=PassOne(fp,&program_len,program_name,base_name,&start_address);
 	fclose(fp);
-	printf("flag: %d\n",err_flag);
+	//printf("flag: %d\n",err_flag);
 	if(err_flag<0){
 		EraseLstList(LstList);
 		EraseSymTab(SymbolList);
@@ -32,10 +32,8 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 		SymbolList=prev_symtab;
 		return;
 	}
-	printf("%s\n",base_name);
-	PrintSymbol();
 	err_flag=PassTwo(base_name);
-	printf("flag: %d\n",err_flag);
+	//printf("flag: %d\n",err_flag);
 	if(err_flag<0){
 		EraseLstList(LstList);
 		EraseSymTab(SymbolList);
@@ -61,20 +59,6 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	fp=fopen(obj_file_name,"w");
 	WriteObjectfile(fp,LstList,program_name,start_address,program_len);
 	fclose(fp);
-	/*
-	LstNode* temp=LstList;
-	while(temp!=NULL){
-		if(temp->next!=NULL)temp=temp->next;
-		else break;
-	}
-	for(;temp!=NULL;temp=temp->prev){
-		printf("%04X %10s %10s %10s",temp->locctr,temp->label,temp->mnemonic,temp->operand[0]);
-		if(temp->operand[1][0]!='\0')printf("%s",temp->operand[1]);
-		if(temp->object_code!=-1)
-			printf("%10llX",temp->object_code);
-		printf("\n");
-	}*/
-	
 }
 int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[], int* staddr){
 	//char program_name[ARGV_MAX_LEN];
@@ -130,18 +114,13 @@ int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[], in
 			if(strcmp("START",mnemonic)==0){
 				inst_size=0;
 				if(!MemoryAddressCheck(operand)){
-					printf("Line_num : %d",cnt);
+					printf("Line_num : %d .",cnt);
 					return MEMORY_ADDRESS_ERROR;///////////
 				}
 				start_address=locctr=strtol(operand,NULL,16);
 				*staddr=start_address;
 				AddLstNode(haslabel,iscomment,locctr,asm_argc,input,asm_argv,inst_size);
 				if(haslabel){
-					int already_exist=InsertSymbol(label,locctr);//program name insert
-					if(already_exist){
-						printf("Line_num : %d",cnt);
-						return DUPLICATE_SYMBOL_ERROR;
-					}
 					strcpy(program_name,label);
 				}
 			}
@@ -170,7 +149,7 @@ int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[], in
 					//checkvalidlabel()
 					int already_exist=InsertSymbol(label,locctr);
 					if(already_exist){
-						printf("Line_num : %d",cnt);
+						printf("Line_num : %d. ",cnt);
 						return DUPLICATE_SYMBOL_ERROR;
 					}
 				}
@@ -179,7 +158,7 @@ int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[], in
 				else
 					inst_size=InstructionMemorySize(mnemonic,operand);
 				if(inst_size==WRONG_OPERAND||inst_size==WRONG_MNEMONIC){
-					printf("Line_num : %d",cnt);
+					printf("Line_num : %d. ",cnt);
 					return inst_size;
 				}
 				AddLstNode(haslabel,iscomment,locctr,asm_argc,input,asm_argv,inst_size);
@@ -198,7 +177,7 @@ int PassTwo(char base_name[]){
 	if(base_sym_node!=NULL)
 		base_locctr=base_sym_node->locctr;
 	else {
-		printf("Line_num : %d",cnt);
+		printf("Line_num : %d. ",cnt);
 		return NO_BASE_ERROR;
 	}
 
@@ -245,7 +224,7 @@ int PassTwo(char base_name[]){
 						if((nixbpe&SIMPLE_MODE)==IMMEDIATE_MODE)
 							imm_val=atoi((lst_reader->operand[i])+1);
 						else{
-							printf("Line_num : %d",cnt);
+							printf("Line_num : %d. ",cnt);
 							return WRONG_OPERAND;
 						} 
 					}
@@ -271,7 +250,7 @@ int PassTwo(char base_name[]){
 							nixbpe=nixbpe|BASE_MODE;
 						}			
 						else{
-							printf("Line_num : %d",cnt);
+							printf("Line_num : %d. ",cnt);
 							return WRONG_FORMAT_ERROR;
 						}
 					}
@@ -316,7 +295,7 @@ int PassTwo(char base_name[]){
 			//BYTE HAVE OBJECT_CODE
 			if(strcmp(mnemonic,"BYTE")==0){
 				if(lst_reader->operand[0]==NULL){
-					printf("Line_num : %d",cnt);
+					printf("Line_num : %d. ",cnt);
 					return WRONG_OPERAND;
 				}
 				if(lst_reader->operand[0][0]=='C'){
@@ -341,13 +320,13 @@ int PassTwo(char base_name[]){
 					lst_reader->object_code=strtol(str,NULL,16);
 				}
 				else{
-					printf("Line_num : %d",cnt);
+					printf("Line_num : %d. ",cnt);
 					return WRONG_OPERAND;
 				}
 			}
 			else if(strcmp(mnemonic,"WORD")==0){
 				if(lst_reader->operand[0]==NULL){
-					printf("Line_num : %d",cnt);
+					printf("Line_num : %d. ",cnt);
 					return WRONG_OPERAND;
 				}
 				lst_reader->object_code=atoi(lst_reader->operand[0]);
@@ -438,23 +417,46 @@ int InstructionMemorySize(char mnemonic[],char operand[]){
 }
 int InsertSymbol(char label[],int locctr){
 	SymbolNode* prev=NULL;
-	for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next){
-		if(strcmp(label,temp->str)==0)
-			return 1;//already exist
-		else if(strcmp(label,temp->str)<0){
-			SymbolNode* newnode=(SymbolNode*)malloc(sizeof(SymbolNode));
-			if(newnode==NULL){
-				printf("memory allocation error");
-				exit(0);
+	SymbolNode* newnode=(SymbolNode*)malloc(sizeof(SymbolNode));
+	if(newnode==NULL){
+		printf("memory allocation error");
+		exit(0);
+	}
+	newnode->locctr=locctr;
+	strcpy(newnode->str,label);
+	newnode->next=NULL;
+	if(SymbolList==NULL){
+		SymbolList=newnode;
+		newnode->next=NULL;
+	}
+	else{
+		for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next){
+			if(strcmp(label,temp->str)==0){
+				if(strlen(label)==strlen(temp->str)){
+					free(newnode);
+					return 1;
+				}
+				else if(strlen(label)<strlen(temp->str)){
+					if(prev!=NULL)
+						prev->next=newnode;
+					else SymbolList=newnode;
+					newnode->next=temp;
+					break;
+				}
 			}
-			newnode->locctr=locctr;
-			strcpy(newnode->str,label);
-			if(prev!=NULL)prev->next=newnode;
-			else SymbolList=newnode;
-			newnode->next=temp;
-		}
-		else
+			else if(strcmp(label,temp->str)<0){
+				if(prev!=NULL)
+					prev->next=newnode;
+				else SymbolList=newnode;
+				newnode->next=temp;
+				break;
+			}
 			prev=temp;
+		}
+		if(prev!=NULL)
+			prev->next=newnode;
+		else
+			SymbolList=newnode;
 	}
 	return 0;
 }
@@ -641,18 +643,21 @@ void PrintSymbol(){
 	for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next){
 		if(isReg(temp->str))
 			continue;
-		printf("\t%s\t\n",temp->str);
+		printf("\t%s\t%04X\n",temp->str,temp->locctr);
 	}
 }
-int isReg(char str[]){
-	if(strcmp(str,"A")==0)return TRUE;
-	if(strcmp(str,"X")==0)return TRUE;
-	if(strcmp(str,"L")==0)return TRUE;
-	if(strcmp(str,"PC")==0)return TRUE;
-	if(strcmp(str,"SW")==0)return TRUE;
-	if(strcmp(str,"B")==0)return TRUE;
-	if(strcmp(str,"S")==0)return TRUE;
-	if(strcmp(str,"T")==0)return TRUE;
-	if(strcmp(str,"F")==0)return TRUE;
+int isReg(char str[]){/*
+	if(strcmp(str,"A")==0&&strlen(str)==1)return TRUE;
+	if(strcmp(str,"X")==0&&strlen(str)==1)return TRUE;
+	if(strcmp(str,"L")==0&&strlen(str)==1)return TRUE;
+	if(strcmp(str,"PC")==0&&strlen(str)==2)return TRUE;
+	if(strcmp(str,"SW")==0&&strlen(str)==2)return TRUE;
+	if(strcmp(str,"B")==0&&strlen(str)==1)return TRUE;
+	if(strcmp(str,"S")==0&&strlen(str)==1)return TRUE;
+	if(strcmp(str,"T")==0&&strlen(str)==1)return TRUE;
+	if(strcmp(str,"F")==0&&strlen(str)==1)return TRUE;*/
 	return FALSE;
-}
+}/*
+SymbolNode* FindOrder(SymbolNode* thislist,char label[]){
+
+}*/
