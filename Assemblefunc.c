@@ -2,6 +2,7 @@
 void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	int err_flag=0;
 	int program_len;
+	int start_address=0;
 	LstNode* prev_lst;
 	SymbolNode* prev_symtab;
 	char program_name[ARGV_MAX_LEN];
@@ -20,8 +21,7 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	LstList=NULL;
 	SymbolList=NULL;
 	InitSymTab();
-
-	err_flag=PassOne(fp,&program_len,program_name,base_name);
+	err_flag=PassOne(fp,&program_len,program_name,base_name,&start_address);
 	fclose(fp);
 	printf("flag: %d\n",err_flag);
 	if(err_flag<0){
@@ -30,14 +30,19 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 		PrintError(err_flag);
 		LstList=prev_lst;
 		SymbolList=prev_symtab;
+		return;
 	}
+	printf("%s\n",base_name);
+	PrintSymbol();
 	err_flag=PassTwo(base_name);
+	printf("flag: %d\n",err_flag);
 	if(err_flag<0){
 		EraseLstList(LstList);
 		EraseSymTab(SymbolList);
 		PrintError(err_flag);
 		LstList=prev_lst;
 		SymbolList=prev_symtab;
+		return;
 	}
 	else{
 		EraseLstList(prev_lst);
@@ -52,7 +57,9 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	strcat(lst_file_name,".lst");
 	fp=fopen(lst_file_name,"w");
 	WriteLstfile(fp,LstList);
-	//WriteObjectfile(LstList);
+	fclose(fp);
+	fp=fopen(obj_file_name,"w");
+	WriteObjectfile(fp,LstList,program_name,start_address,program_len);
 	fclose(fp);
 	/*
 	LstNode* temp=LstList;
@@ -69,7 +76,7 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	}*/
 	
 }
-int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[]){
+int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[], int* staddr){
 	//char program_name[ARGV_MAX_LEN];
 	char input[INPUT_MAX_LEN];
 	char asm_argv[ARGC_MAX][ARGV_MAX_LEN];
@@ -77,10 +84,11 @@ int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[]){
 	int start_address=0;
 	int haslabel=FALSE;
 	int	iscomment=FALSE;
-	int inst_size;
+	int inst_size,cnt=0;
 	int asm_argc=0;
 	int label_idx, mnemonic_idx, operand_idx;//operand could be many?
 	while(fgets(input,INPUT_MAX_LEN,fp)!=NULL){
+		cnt++;
 		inst_size=0;
 		if(strlen(input)!=0)
 			input[strlen(input)-1]='\0';
@@ -121,14 +129,19 @@ int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[]){
 		
 			if(strcmp("START",mnemonic)==0){
 				inst_size=0;
-				if(!MemoryAddressCheck(operand))
+				if(!MemoryAddressCheck(operand)){
+					printf("Line_num : %d",cnt);
 					return MEMORY_ADDRESS_ERROR;///////////
+				}
 				start_address=locctr=strtol(operand,NULL,16);
+				*staddr=start_address;
 				AddLstNode(haslabel,iscomment,locctr,asm_argc,input,asm_argv,inst_size);
 				if(haslabel){
 					int already_exist=InsertSymbol(label,locctr);//program name insert
-					if(already_exist)
+					if(already_exist){
+						printf("Line_num : %d",cnt);
 						return DUPLICATE_SYMBOL_ERROR;
+					}
 					strcpy(program_name,label);
 				}
 			}
@@ -156,15 +169,19 @@ int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[]){
 				if(haslabel){
 					//checkvalidlabel()
 					int already_exist=InsertSymbol(label,locctr);
-					if(already_exist)
+					if(already_exist){
+						printf("Line_num : %d",cnt);
 						return DUPLICATE_SYMBOL_ERROR;
+					}
 				}
 				if(iscomment)
 					inst_size=0;
 				else
 					inst_size=InstructionMemorySize(mnemonic,operand);
-				if(inst_size==WRONG_OPERAND||inst_size==WRONG_MNEMONIC)
+				if(inst_size==WRONG_OPERAND||inst_size==WRONG_MNEMONIC){
+					printf("Line_num : %d",cnt);
 					return inst_size;
+				}
 				AddLstNode(haslabel,iscomment,locctr,asm_argc,input,asm_argv,inst_size);
 			}
 		}
@@ -176,11 +193,14 @@ int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[]){
 int PassTwo(char base_name[]){
 	SymbolNode* base_sym_node=FindSymbol(base_name);
 	char mnemonic[ARGV_MAX_LEN]="";
-	int base_locctr;
+	int base_locctr,cnt=0;
 
 	if(base_sym_node!=NULL)
 		base_locctr=base_sym_node->locctr;
-	else return NO_BASE_ERROR;
+	else {
+		printf("Line_num : %d",cnt);
+		return NO_BASE_ERROR;
+	}
 
 	LstNode* lst_reader=LstList;
 	while(lst_reader!=NULL){
@@ -193,11 +213,14 @@ int PassTwo(char base_name[]){
 	while(lst_reader!=NULL){
 		int pc=lst_reader->locctr+lst_reader->format;
 		long long object_code=0;
+		cnt++;
 		strcpy(mnemonic,lst_reader->mnemonic);
 		OpcodeNode* opnode=GetOpcodeNodeByMnemonic(mnemonic);
 		if(opnode==NULL&&strlen(mnemonic)!=0)
 			opnode=GetOpcodeNodeByMnemonic(mnemonic+1);
-		if(strcmp("START",mnemonic)==0){
+		if(lst_reader->iscomment)
+			lst_reader->object_code=-1;
+		else if(strcmp("START",mnemonic)==0){
 			lst_reader->object_code=-1;
 		}
 		else if(strcmp("END",mnemonic)==0){
@@ -213,7 +236,6 @@ int PassTwo(char base_name[]){
 			SymbolNode* symbol[10];
 			for(int i=0;i<10;i++)
 				symbol[i]=NULL;
-			
 			for(int i=0;i<lst_reader->operand_num;i++){
 				symbol[i]=FindSymbol(lst_reader->operand[i]);
 				if(symbol[i]==NULL){
@@ -222,7 +244,10 @@ int PassTwo(char base_name[]){
 						//if(!decimal)return error;
 						if((nixbpe&SIMPLE_MODE)==IMMEDIATE_MODE)
 							imm_val=atoi((lst_reader->operand[i])+1);
-						else return WRONG_OPERAND;
+						else{
+							printf("Line_num : %d",cnt);
+							return WRONG_OPERAND;
+						} 
 					}
 				}
 			}
@@ -245,8 +270,10 @@ int PassTwo(char base_name[]){
 							disp=base_disp;
 							nixbpe=nixbpe|BASE_MODE;
 						}			
-						else
+						else{
+							printf("Line_num : %d",cnt);
 							return WRONG_FORMAT_ERROR;
+						}
 					}
 					else disp=0;
 				}
@@ -267,11 +294,13 @@ int PassTwo(char base_name[]){
 				lst_reader->object_code=object_code|disp;
 				//printf("disp : %d\n",disp);
 			}
-			else if(lst_reader->format==2){
+			else if(lst_reader->format==2){/*
+				for(int i=0;i<10;i++)
+					reg[i]=-1;
 				for(int i=0;i<lst_reader->operand_num;i++){
-					symbol[i]=FindSymbol(lst_reader->operand[i]);
+					reg[i]=FindReg(lst_reader->operand[i]);
 					/////////////immediate?
-				}
+				}*/
 				object_code=opnode->opcode;
 				object_code=(object_code<<8);
 				if(symbol[0]!=NULL)
@@ -286,8 +315,10 @@ int PassTwo(char base_name[]){
 		else{
 			//BYTE HAVE OBJECT_CODE
 			if(strcmp(mnemonic,"BYTE")==0){
-				if(lst_reader->operand[0]==NULL)
+				if(lst_reader->operand[0]==NULL){
+					printf("Line_num : %d",cnt);
 					return WRONG_OPERAND;
+				}
 				if(lst_reader->operand[0][0]=='C'){
 					int i=0;
 					int len=strlen(lst_reader->operand[0]);
@@ -309,8 +340,17 @@ int PassTwo(char base_name[]){
 					}
 					lst_reader->object_code=strtol(str,NULL,16);
 				}
-				else
-					return ERROR;
+				else{
+					printf("Line_num : %d",cnt);
+					return WRONG_OPERAND;
+				}
+			}
+			else if(strcmp(mnemonic,"WORD")==0){
+				if(lst_reader->operand[0]==NULL){
+					printf("Line_num : %d",cnt);
+					return WRONG_OPERAND;
+				}
+				lst_reader->object_code=atoi(lst_reader->operand[0]);
 			}
 			else
 				lst_reader->object_code=-1;
@@ -354,7 +394,9 @@ void AddLstNode(int haslabel,int iscomment,int locctr,int argc,char str[],char a
 	newnode->operand_num=operandnum;
 	newnode->format=inst_size;
 	if(label_idx!=-1)strcpy(newnode->label,asm_argv[label_idx]);
+	else (newnode->label)[0]='\0';
 	if(mnemonic_idx!=-1)strcpy(newnode->mnemonic,asm_argv[mnemonic_idx]);
+	else (newnode->mnemonic)[0]='\0';
 	for(int i=0;i<operandnum;i++)
 		strcpy(newnode->operand[i],asm_argv[operand_idx+i]);
 	newnode->next=LstList;
@@ -395,19 +437,25 @@ int InstructionMemorySize(char mnemonic[],char operand[]){
 	return inst_size;
 }
 int InsertSymbol(char label[],int locctr){
+	SymbolNode* prev=NULL;
 	for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next){
 		if(strcmp(label,temp->str)==0)
 			return 1;//already exist
+		else if(strcmp(label,temp->str)<0){
+			SymbolNode* newnode=(SymbolNode*)malloc(sizeof(SymbolNode));
+			if(newnode==NULL){
+				printf("memory allocation error");
+				exit(0);
+			}
+			newnode->locctr=locctr;
+			strcpy(newnode->str,label);
+			if(prev!=NULL)prev->next=newnode;
+			else SymbolList=newnode;
+			newnode->next=temp;
+		}
+		else
+			prev=temp;
 	}
-	SymbolNode* newnode=(SymbolNode*)malloc(sizeof(SymbolNode));
-	if(newnode==NULL){
-		printf("memory allocation error");
-		exit(0);
-	}
-	newnode->locctr=locctr;
-	strcpy(newnode->str,label);
-	newnode->next=SymbolList;
-	SymbolList=newnode;
 	return 0;
 }
 SymbolNode* FindSymbol(char label[]){
@@ -442,7 +490,7 @@ void PrintError(int flag){
 		printf("wrong operand error\n");
 			break;
 		case DUPLICATE_SYMBOL_ERROR:
-		printf("duplicate symbol error\n");
+		printf("duplicate symbol or register name error\n");
 			break;
 		case MEMORY_ADDRESS_ERROR:
 		printf("memory address error\n");
@@ -460,7 +508,7 @@ void PrintError(int flag){
 		printf("error\n");
 	}
 }
-void InitSymTab(){
+void InitSymTab(char reg[]){
 	InsertSymbol("A",0);
 	InsertSymbol("X",1);
 	InsertSymbol("L",2);
@@ -471,10 +519,10 @@ void InitSymTab(){
 	InsertSymbol("S",4);
 	InsertSymbol("T",5);
 	InsertSymbol("F",6);
+
 }
 int SetAddressingMode(LstNode* lst_reader){
 		int nixbpe=0;
-		printf("operand : %s\n",(lst_reader->operand)[0]);
 		if(lst_reader->operand_num>1)
 			if((lst_reader->operand)[1][0]=='X')
 				nixbpe=(nixbpe|INDEX_MODE);			//index address x=1 else x=0
@@ -483,13 +531,10 @@ int SetAddressingMode(LstNode* lst_reader){
 			nixbpe=(nixbpe|IMMEDIATE_MODE);			// immediate addressing
 		else if((lst_reader->operand)[0][0]=='@')
 			nixbpe=(nixbpe|INDIRECT_MODE);			// indirect addressing
-		else nixbpe=(nixbpe|SIMPLE_MODE);				// simple addressing
+		else nixbpe=(nixbpe|SIMPLE_MODE);			// simple addressing
 
 		if(lst_reader->format==3)nixbpe=(nixbpe|FORMAT_3);
 		else nixbpe=(nixbpe|FORMAT_4);
-		//pc relative disp(signed)// calculate memory range
-		//base disp(unsigned)
-		//direct disp(12bit)
 		//std sic(b,p,e is address field) n=0, i=0???????????????????
 		return nixbpe;
 }
@@ -506,13 +551,14 @@ void WriteLstfile(FILE* fp,LstNode* thislist){
 		fprintf(fp,"%-5d ",i*5);
 		if(lst_reader->locctr<0||lst_reader->iscomment)
 			fprintf(fp,"      ");
-		else{
+		else
 			fprintf(fp,"%04X  ",lst_reader->locctr);
-			fprintf(fp,"%s\t",lst_reader->str);
-		}
+		fprintf(fp,"%s",lst_reader->str);
 		if(lst_reader->object_code==-1)
 			fprintf(fp,"\n");
 		else{
+			for(int i=strlen(lst_reader->str);i<30;i++)
+				fprintf(fp," ");
 			int size=(lst_reader->format)*2;
 			if(size==2)fprintf(fp,"%02llX\n",lst_reader->object_code);
 			else if(size==4)fprintf(fp,"%04llX\n",lst_reader->object_code);
@@ -523,4 +569,90 @@ void WriteLstfile(FILE* fp,LstNode* thislist){
 		lst_reader=lst_reader->prev;
 		i++;
 	}
+}
+void WriteObjectfile(FILE* fp,LstNode* thislist,char program_name[],int start_address,int program_len){
+	LstNode* lst_reader=thislist;
+	int start_inst=start_address+program_len;
+	int modified[100];
+	int modified_idx=0;
+	while(lst_reader!=NULL){
+		if(lst_reader->format==4){
+			modified[modified_idx++]=(lst_reader->locctr)+1;
+			if((lst_reader->operand)[0][0]=='#'&&isDecimal((lst_reader->operand)[0]+1))
+				modified[--modified_idx]=0;
+		}
+		if(start_inst>(lst_reader->locctr)&&(lst_reader->object_code)!=-1)
+			start_inst=lst_reader->locctr;
+		if(lst_reader->next!=NULL)
+			lst_reader=lst_reader->next;
+		else
+			break;
+	}
+	//printf("%s %X %X\n",program_name,start_address,program_len);
+	
+	fprintf(fp,"H%-6s%06X%06X\n",program_name,start_address,program_len);
+	int size=0;
+	while(lst_reader!=NULL){
+		while(lst_reader!=NULL&&lst_reader->object_code==-1)
+			lst_reader=lst_reader->prev;
+		if(lst_reader==NULL)break;
+		size=CountTextRecordSize(lst_reader);
+		fprintf(fp,"T%06X%02X",lst_reader->locctr,size);
+		while(lst_reader!=NULL){
+			if(lst_reader->object_code!=-1){
+				fprintf(fp," %06llX ",lst_reader->object_code);
+				size-=lst_reader->format;
+			}
+			lst_reader=lst_reader->prev;
+			if(size==0)break;
+		}
+		fprintf(fp,"\n");
+	}
+	for(int i=1;i<=modified_idx;i++)
+		fprintf(fp,"M%06X%02X\n",modified[modified_idx-i],5);
+	fprintf(fp,"E%06X\n",start_inst);
+}
+int CountTextRecordSize(LstNode* head){
+	LstNode* temp=head;
+	int size=0;
+	int varsize=0;
+	while(temp!=NULL){
+		if(size+temp->format<=30){
+			size+=temp->format;
+			if(temp->object_code==-1)
+				varsize+=temp->format;
+		}
+		else return size-varsize;
+		temp=temp->prev;
+	}
+	return size-varsize;
+}
+int isDecimal(char str[]){
+	int len = strlen(str);
+	if(len==0)return FALSE;
+	for (int i = 0; i < len; i++) {
+		if ('0' <= str[i] && str[i] <= '9')
+			continue;
+		return FALSE;
+	}
+	return TRUE;
+}
+void PrintSymbol(){
+	for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next){
+		if(isReg(temp->str))
+			continue;
+		printf("\t%s\t\n",temp->str);
+	}
+}
+int isReg(char str[]){
+	if(strcmp(str,"A")==0)return TRUE;
+	if(strcmp(str,"X")==0)return TRUE;
+	if(strcmp(str,"L")==0)return TRUE;
+	if(strcmp(str,"PC")==0)return TRUE;
+	if(strcmp(str,"SW")==0)return TRUE;
+	if(strcmp(str,"B")==0)return TRUE;
+	if(strcmp(str,"S")==0)return TRUE;
+	if(strcmp(str,"T")==0)return TRUE;
+	if(strcmp(str,"F")==0)return TRUE;
+	return FALSE;
 }

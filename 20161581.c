@@ -21,7 +21,7 @@ int main() {
 		input_case = InputCategorize(argv, argc, &cmdcase);		//	VerifyCmd and Arguments and Classify the case
 		switch (input_case) {
 		case INPUT_ERROR:						//	Wrong input
-			printf("WRONG INPUT!!\n");
+			printf("Error!!\n");
 			break;
 		case PROMPT:							//	Processing is done so Return to Prompt
 			break;

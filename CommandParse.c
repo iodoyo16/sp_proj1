@@ -290,7 +290,21 @@ int InputArgsCheck(char argv[][ARGV_MAX_LEN], int argc, int cmdcase) {
 			}
 		}
 		break;
-	case ASSEMBLE_NUM:
+	case ASSEMBLE_NUM:/*
+		if(argc!=2)return INPUT_ERROR;
+		else{
+			if((argv[1]+strlen(argv[1])-4)>0){
+				if(strcmp(argv[1]+strlen(argv[1])-4,".asm")!=0)
+					return INPUT_ERROR;
+			}
+			else return INPUT_ERROR;
+			strcat(filename, argv[1]);
+			if(access(filename,F_OK | R_OK)!=0){
+				//printf("%s\n",filename);
+				status=INPUT_ERROR;
+			}
+		}
+		break;*/
 	case TYPE_NUM:
 		if(argc!=2)return INPUT_ERROR;
 		else{
@@ -345,6 +359,7 @@ void FuncExecute(int cmdcase, char argv[][ARGV_MAX_LEN],int argc) {
 		TypeFile(argv);
 		break;
 	case SYMBOL_NUM:
+		PrintSymbol();
 		break;
 	}
 }
