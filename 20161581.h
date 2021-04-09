@@ -65,8 +65,8 @@
 #define SIMPLE_MODE 48//simple '11'0000=48
 #define STD_MODE 0//standard sic '00'0000 *bpe is address field
 
-#define FORMAT_3 1// format 3 00000'1'
-#define FORMAT_4 0// format 4 00000'0'
+#define FORMAT_3 0// format 3 00000'0'
+#define FORMAT_4 1// format 4 00000'1'
 
 
 

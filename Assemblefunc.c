@@ -47,10 +47,16 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	//for(LstNode* temp=LstList;temp!=NULL;temp=temp->next)
 	//	printf("%04X %10s %10s %10s\n",temp->locctr,temp->label,temp->mnemonic,temp->operand);
 	err_flag=PassTwo(base_name);
-	for(LstNode* temp=LstList;temp!=NULL;temp=temp->next){
+	LstNode* temp=LstList;
+	while(temp!=NULL){
+		if(temp->next!=NULL)temp=temp->next;
+		else break;
+	}
+	for(;temp!=NULL;temp=temp->prev){
 		printf("%04X %10s %10s %10s",temp->locctr,temp->label,temp->mnemonic,temp->operand[0]);
 		if(temp->operand[1][0]!='\0')printf("%s",temp->operand[1]);
-		printf("%10llx",temp->object_code);
+		if(temp->object_code!=-1)
+			printf("%10llX",temp->object_code);
 		printf("\n");
 	}
 //	WriteLstfile();
@@ -181,6 +187,9 @@ int PassTwo(char base_name[]){
 		long long object_code=0;
 		strcpy(mnemonic,lst_reader->mnemonic);
 		OpcodeNode* opnode=GetOpcodeNodeByMnemonic(mnemonic);
+		if(opnode==NULL&&strlen(mnemonic)!=0)
+			opnode=GetOpcodeNodeByMnemonic(mnemonic+1);
+		//printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 		if(strcmp("START",mnemonic)==0){
 			lst_reader->object_code=-1;
 		}
@@ -189,29 +198,29 @@ int PassTwo(char base_name[]){
 			break;
 		}
 		else if(opnode!=NULL){
-			printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 			int nixbpe=0;
-			int imm_val=0;
+			int imm_val=-1;
 			if(lst_reader->format==3||lst_reader->format==4)
 				nixbpe=SetAddressingMode(lst_reader);
-
 			int disp=0,pc_disp=0,base_disp=0;//disp=symbol-pc
 			SymbolNode* symbol[10];
+			
 			for(int i=0;i<lst_reader->operand_num;i++){
 				symbol[i]=FindSymbol(lst_reader->operand[i]);
 				if(symbol[i]==NULL){
 					symbol[i]=FindSymbol((lst_reader->operand[i])+1);
-					if(symbol[i]==NULL)
+					if(symbol[i]==NULL){
+						//if(!decimal)return error;
 						imm_val=atoi((lst_reader->operand[i])+1);
-					else
-						return ERROR;
+					}
+					
 				}
 			}
 			if(lst_reader->format==3){
 				object_code=opnode->opcode;				//
 				object_code=object_code<<16;
-				printf("%llX\n\n",object_code);
-				if(nixbpe|IMMEDIATE_MODE)
+				printf("nixbpe : %d\n",nixbpe);
+				if(imm_val!=-1)
 					disp=imm_val;
 				else{
 					for(int i=0;i<lst_reader->operand_num;i++){
@@ -221,34 +230,46 @@ int PassTwo(char base_name[]){
 							if(pc_disp<0)
 								pc_disp+=4096;
 							disp=pc_disp;
+							nixbpe=nixbpe|PC_MODE;
 						}
-						else if(0<=base_disp&&base_disp<=4095)
+						else if(0<=base_disp&&base_disp<=4095){
 							disp=base_disp;
+							nixbpe=nixbpe|BASE_MODE;
+						}
+							
 						else
 							return ERROR;
+						printf("disp : %x\n",disp);
 					}
 				}
 				object_code=object_code|(nixbpe<<12);
 				lst_reader->object_code=object_code|disp;
 			}
 			else if(lst_reader->format==4){
-				object_code=opnode->opcode;	// address 20 + nixbpe(6)
+				object_code=opnode->opcode;	//
 				object_code=object_code<<24;
-				if(nixbpe|IMMEDIATE_MODE)
+				if(imm_val!=-1)
 					disp=imm_val;
-				else
-					disp=symbol->locctr;
+				else{
+					if(symbol[0]!=NULL)
+						disp=symbol[0]->locctr;
+					nixbpe=nixbpe|DIRECT_MODE;
+				}
 				object_code=object_code|(nixbpe<<20);
 				lst_reader->object_code=object_code|disp;
+				printf("disp : %d\n",disp);
 			}
 			else if(lst_reader->format==2){
-				SymbolNode* symbol2;
-				if(lst_reader->operand_num==2)
-					symbol2=FindSymbol(lst_reader->operand[1]);
+				for(int i=0;i<lst_reader->operand_num;i++){
+					symbol[i]=FindSymbol(lst_reader->operand[1]);
+					/////////////immediate?
+				}
 				object_code=opnode->opcode;
 				object_code=(object_code<<8);
-				object_code=object_code|((symbol->locctr)<<4);
-				object_code=object_code|(symbol2->locctr);
+				if(symbol[0]!=NULL)
+					object_code=object_code|((symbol[0]->locctr)<<4);
+				if(symbol[1]!=NULL)
+					object_code=object_code|(symbol[1]->locctr);
 				lst_reader->object_code=object_code;
 			}
 			else
@@ -279,6 +300,7 @@ int PassTwo(char base_name[]){
 			}
 			else
 				lst_reader->object_code=-1;
+			
 		}
 		lst_reader=lst_reader->prev;
 	}
@@ -427,18 +449,19 @@ void InitSymTab(){
 }
 int SetAddressingMode(LstNode* lst_reader){
 		int nixbpe=0;
+		printf("operand : %s\n",(lst_reader->operand)[0]);
 		if(lst_reader->operand_num>1)
 			if((lst_reader->operand)[1][0]=='X')
-				nixbpe=nixbpe|INDEX_MODE;			//index address x=1 else x=0
+				nixbpe=(nixbpe|INDEX_MODE);			//index address x=1 else x=0
 
 		if((lst_reader->operand)[0][0]=='#')
-			nixbpe=nixbpe|IMMEDIATE_MODE;			// immediate addressing
+			nixbpe=(nixbpe|IMMEDIATE_MODE);			// immediate addressing
 		else if((lst_reader->operand)[0][0]=='@')
-			nixbpe=nixbpe|INDIRECT_MODE;			// indirect addressing
-		else nixbpe=nixbpe|SIMPLE_MODE;				// simple addressing
+			nixbpe=(nixbpe|INDIRECT_MODE);			// indirect addressing
+		else nixbpe=(nixbpe|SIMPLE_MODE);				// simple addressing
 
-		if(lst_reader->format==3)nixbpe=nixbpe|FORMAT_3;
-		else nixbpe=nixbpe|FORMAT_4;
+		if(lst_reader->format==3)nixbpe=(nixbpe|FORMAT_3);
+		else nixbpe=(nixbpe|FORMAT_4);
 		//pc relative disp(signed)// calculate memory range
 		//base disp(unsigned)
 		//direct disp(12bit)
