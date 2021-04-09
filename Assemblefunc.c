@@ -6,6 +6,8 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	SymbolNode* prev_symtab;
 	char program_name[ARGV_MAX_LEN];
 	char base_name[ARGV_MAX_LEN];
+	char obj_file_name[30];
+	char lst_file_name[30];
 	FILE *fp = fopen(argv[1],"r");
 	//printf("%s\n",argv[1]);
 	if(fp==NULL){
@@ -18,18 +20,18 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	LstList=NULL;
 	SymbolList=NULL;
 	InitSymTab();
-	//printf("before\n");
-	//for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next)
-	//	printf("%04X %s\n",temp->locctr,temp->str);
+
 	err_flag=PassOne(fp,&program_len,program_name,base_name);
+	fclose(fp);
 	printf("flag: %d\n",err_flag);
-	/*
-	for(LstNode* temp=LstList;temp!=NULL;temp=temp->next){
-		printf("%04X %8s %8s %8s",temp->locctr,temp->label,temp->mnemonic,temp->operand[0]);
-		if(temp->operand[1][0]!='\0')printf("%s\n",temp->operand[1]);
-		else printf("\n");
+	if(err_flag<0){
+		EraseLstList(LstList);
+		EraseSymTab(SymbolList);
+		PrintError(err_flag);
+		LstList=prev_lst;
+		SymbolList=prev_symtab;
 	}
-	*/	
+	err_flag=PassTwo(base_name);
 	if(err_flag<0){
 		EraseLstList(LstList);
 		EraseSymTab(SymbolList);
@@ -41,12 +43,18 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 		EraseLstList(prev_lst);
 		EraseSymTab(prev_symtab);
 	}
-	//printf("after\n");
-	//for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next)
-	//	printf("%04X %s\n",temp->locctr,temp->str);
-	//for(LstNode* temp=LstList;temp!=NULL;temp=temp->next)
-	//	printf("%04X %10s %10s %10s\n",temp->locctr,temp->label,temp->mnemonic,temp->operand);
-	err_flag=PassTwo(base_name);
+	for(int i=0;i<strlen(argv[1]);i++){
+		if(argv[1][i]=='.')break;
+		obj_file_name[i]=argv[1][i];
+		lst_file_name[i]=argv[1][i];
+	}
+	strcat(obj_file_name,".obj");
+	strcat(lst_file_name,".lst");
+	fp=fopen(lst_file_name,"w");
+	WriteLstfile(fp,LstList);
+	//WriteObjectfile(LstList);
+	fclose(fp);
+	/*
 	LstNode* temp=LstList;
 	while(temp!=NULL){
 		if(temp->next!=NULL)temp=temp->next;
@@ -58,9 +66,8 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 		if(temp->object_code!=-1)
 			printf("%10llX",temp->object_code);
 		printf("\n");
-	}
-//	WriteLstfile();
-//	WriteObjectfile();
+	}*/
+	
 }
 int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[]){
 	//char program_name[ARGV_MAX_LEN];
@@ -437,8 +444,20 @@ void PrintError(int flag){
 		case DUPLICATE_SYMBOL_ERROR:
 		printf("duplicate symbol error\n");
 			break;
-		//case
-		//case
+		case MEMORY_ADDRESS_ERROR:
+		printf("memory address error\n");
+			break;
+		case NO_BASE_ERROR:
+		printf("no base error\n");
+			break;
+		case WRONG_FORMAT_ERROR:
+		printf("wrong format error\n");
+			break;
+		case ERROR:
+		printf("error\n");
+			break;
+		default:
+		printf("error\n");
 	}
 }
 void InitSymTab(){
@@ -473,4 +492,35 @@ int SetAddressingMode(LstNode* lst_reader){
 		//direct disp(12bit)
 		//std sic(b,p,e is address field) n=0, i=0???????????????????
 		return nixbpe;
+}
+void WriteLstfile(FILE* fp,LstNode* thislist){
+	LstNode* lst_reader=thislist;
+	while(lst_reader!=NULL){
+		if(lst_reader->next!=NULL)
+			lst_reader=lst_reader->next;
+		else
+			break;
+	}
+	int i=1;
+	while(lst_reader!=NULL){
+		fprintf(fp,"%-5d ",i*5);
+		if(lst_reader->locctr<0||lst_reader->iscomment)
+			fprintf(fp,"      ");
+		else{
+			fprintf(fp,"%04X  ",lst_reader->locctr);
+			fprintf(fp,"%s\t",lst_reader->str);
+		}
+		if(lst_reader->object_code==-1)
+			fprintf(fp,"\n");
+		else{
+			int size=(lst_reader->format)*2;
+			if(size==2)fprintf(fp,"%02llX\n",lst_reader->object_code);
+			else if(size==4)fprintf(fp,"%04llX\n",lst_reader->object_code);
+			else if(size==6)fprintf(fp,"%06llX\n",lst_reader->object_code);
+			else if(size==8)fprintf(fp,"%08llX\n",lst_reader->object_code);
+			else fprintf(fp,"%llX\n",lst_reader->object_code);
+		}
+		lst_reader=lst_reader->prev;
+		i++;
+	}
 }

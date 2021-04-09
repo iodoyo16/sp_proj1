@@ -183,6 +183,8 @@ void EraseSymTab(SymbolNode* thislist);
 void EraseLstList(LstNode* thislist);
 SymbolNode* FindSymbol(char label[]);
 int SetAddressingMode(LstNode* lst_reader);
+void WriteLstfile(FILE* fp,LstNode* thislist);
+void WriteObjectfile(FILE* fp,LstNode* thislist);
 
 
 
