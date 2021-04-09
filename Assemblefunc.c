@@ -23,6 +23,13 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	//	printf("%04X %s\n",temp->locctr,temp->str);
 	err_flag=PassOne(fp,&program_len,program_name,base_name);
 	printf("flag: %d\n",err_flag);
+	/*
+	for(LstNode* temp=LstList;temp!=NULL;temp=temp->next){
+		printf("%04X %8s %8s %8s",temp->locctr,temp->label,temp->mnemonic,temp->operand[0]);
+		if(temp->operand[1][0]!='\0')printf("%s\n",temp->operand[1]);
+		else printf("\n");
+	}
+	*/	
 	if(err_flag<0){
 		EraseLstList(LstList);
 		EraseSymTab(SymbolList);
@@ -39,7 +46,13 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	//	printf("%04X %s\n",temp->locctr,temp->str);
 	//for(LstNode* temp=LstList;temp!=NULL;temp=temp->next)
 	//	printf("%04X %10s %10s %10s\n",temp->locctr,temp->label,temp->mnemonic,temp->operand);
-	//err_flag=PassTwo(base_name);
+	err_flag=PassTwo(base_name);
+	for(LstNode* temp=LstList;temp!=NULL;temp=temp->next){
+		printf("%04X %10s %10s %10s",temp->locctr,temp->label,temp->mnemonic,temp->operand[0]);
+		if(temp->operand[1][0]!='\0')printf("%s",temp->operand[1]);
+		printf("%10llx",temp->object_code);
+		printf("\n");
+	}
 //	WriteLstfile();
 //	WriteObjectfile();
 }
@@ -148,8 +161,12 @@ int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[]){
 }
 
 int PassTwo(char base_name[]){
-	SymbolNode* base_sym_node=(FindSymbol(base_name));
-	int base_locctr=base_sym_node->locctr;
+	SymbolNode* base_sym_node=FindSymbol(base_name);
+	char mnemonic[ARGV_MAX_LEN];
+	int base_locctr;
+
+	if(base_sym_node!=NULL)base_locctr=base_sym_node->locctr;
+	else return ERROR;
 
 	LstNode* lst_reader=LstList;
 	while(lst_reader!=NULL){
@@ -158,76 +175,114 @@ int PassTwo(char base_name[]){
 		else
 			break;
 	}
+	
 	while(lst_reader!=NULL){
-		char mnemonic[ARGV_MAX_LEN];
-		strcpy(mnemonic,lst_reader->mnemonic);
 		int pc=lst_reader->locctr+lst_reader->format;
+		long long object_code=0;
+		strcpy(mnemonic,lst_reader->mnemonic);
+		OpcodeNode* opnode=GetOpcodeNodeByMnemonic(mnemonic);
 		if(strcmp("START",mnemonic)==0){
-			//write headline
+			lst_reader->object_code=-1;
 		}
 		else if(strcmp("END",mnemonic)==0){
-			//write endrecord
+			lst_reader->object_code=-1;
 			break;
 		}
-	//	else if(assembler directives){
-	//		BYTE HAVE OBJECT_CODE
-	//		object_code=-1
-	//	}
-		else{
-			if(lst_reader->format==3||lst_reader->format==4){
-				int nixbpe=0;
-			if(lst_reader->operand_num>1)
-				if((lst_reader->operand)[1][0]=='X')
-					nixbpe=nixbpe|INDEX_MODE;			//index address x=1 else x=0
+		else if(opnode!=NULL){
+			printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+			int nixbpe=0;
+			int imm_val=0;
+			if(lst_reader->format==3||lst_reader->format==4)
+				nixbpe=SetAddressingMode(lst_reader);
 
-			if((lst_reader->operand)[0][0]=='#')
-				nixbpe=nixbpe|IMMEDIATE_MODE;			// immediate addressing
-			else if((lst_reader->operand)[0][0]=='@')
-				nixbpe=nixbpe|INDIRECT_MODE;			// indirect addressing
-			else nixbpe=nixbpe|SIMPLE_MODE;				// simple addressing
-			//pc relative disp(signed)// calculate memory range
-			//base disp(unsigned)
-			//direct disp(12bit)
-
-			//std sic(b,p,e is address field) n=0, i=0
-			}
-			
-			OpcodeNode* opnode=GetOpcodeNodeByMnemonic(mnemonic);
-
-			int disp,pc_disp,base_disp;//disp=symbol-pc
-			SymbolNode* symbol=FindSymbol(lst_reader->operand[0]);
-
-			if(lst_reader->format==3){
-				lst_reader->object_code=(opnode->opcode)<<18;				// nixbpe(6) + disp(12)
-				pc_disp=(symbol->locctr)-pc;
-				base_disp=(lst_symbol->locctr)-base_locctr;
-				if(-2048=<pc_disp&&pc_disp<=2047){				//pc relative
-					if(pc_disp<0)
-						pc_disp+=4096;
-					disp=pc_disp;
+			int disp=0,pc_disp=0,base_disp=0;//disp=symbol-pc
+			SymbolNode* symbol[10];
+			for(int i=0;i<lst_reader->operand_num;i++){
+				symbol[i]=FindSymbol(lst_reader->operand[i]);
+				if(symbol[i]==NULL){
+					symbol[i]=FindSymbol((lst_reader->operand[i])+1);
+					if(symbol[i]==NULL)
+						imm_val=atoi((lst_reader->operand[i])+1);
+					else
+						return ERROR;
 				}
-				else if(0<=base_disp&&base_disp<=4095)
-					disp=base_disp;
-				else
-					return ERROR;
-				lst_reader->object_code=(lst_reader->object_code)|nixbpe<<12;
-				lst_reader->object_code=(lst_reader->object_code)|disp;
+			}
+			if(lst_reader->format==3){
+				object_code=opnode->opcode;				//
+				object_code=object_code<<16;
+				printf("%llX\n\n",object_code);
+				if(nixbpe|IMMEDIATE_MODE)
+					disp=imm_val;
+				else{
+					for(int i=0;i<lst_reader->operand_num;i++){
+						pc_disp=(symbol[i]->locctr)-pc;
+						base_disp=(symbol[i]->locctr)-base_locctr;
+						if(-2048<=pc_disp&&pc_disp<=2047){				//pc relative
+							if(pc_disp<0)
+								pc_disp+=4096;
+							disp=pc_disp;
+						}
+						else if(0<=base_disp&&base_disp<=4095)
+							disp=base_disp;
+						else
+							return ERROR;
+					}
+				}
+				object_code=object_code|(nixbpe<<12);
+				lst_reader->object_code=object_code|disp;
 			}
 			else if(lst_reader->format==4){
-				lst_reader->object_code=(opnode->opcode)<<26;	// address 20 + nixbpe(6)
-				disp=symbol->locctr;
-				lst_reader->object_code=(lst_reader->object_code)|nixbpe<<20;
-				lst_reader->object_code=(lst_reader->object_code)|disp;
+				object_code=opnode->opcode;	// address 20 + nixbpe(6)
+				object_code=object_code<<24;
+				if(nixbpe|IMMEDIATE_MODE)
+					disp=imm_val;
+				else
+					disp=symbol->locctr;
+				object_code=object_code|(nixbpe<<20);
+				lst_reader->object_code=object_code|disp;
 			}
 			else if(lst_reader->format==2){
-
+				SymbolNode* symbol2;
+				if(lst_reader->operand_num==2)
+					symbol2=FindSymbol(lst_reader->operand[1]);
+				object_code=opnode->opcode;
+				object_code=(object_code<<8);
+				object_code=object_code|((symbol->locctr)<<4);
+				object_code=object_code|(symbol2->locctr);
+				lst_reader->object_code=object_code;
 			}
-			else{
-				lst_reader->opcode=opnode->opcode;
-			}
+			else
+				lst_reader->object_code=opnode->opcode;
 		}
+		else{
+			//BYTE HAVE OBJECT_CODE
+			if(strcmp(mnemonic,"BYTE")==0){
+				if(lst_reader->operand[0][0]=='C'){
+					int i=0;
+					while(lst_reader->operand[0][2+i]!='\0'&&lst_reader->operand[0][2+i]!='\''){
+						object_code=object_code<<8;// hexa 2 digit
+						object_code=object_code|lst_reader->operand[0][2+i];
+						i++;
+					}
+				}
+				else if(lst_reader->operand[0][0]=='X'){
+					int i=0;
+					char str[ARGV_MAX_LEN];
+					while(lst_reader->operand[0][2+i]!='\0'&&lst_reader->operand[0][2+i]!='\''){
+						str[i]=lst_reader->operand[0][2+i];
+						i++;
+					}
+					lst_reader->object_code=strtol(str,NULL,16);
+				}
+				else
+					return ERROR;
+			}
+			else
+				lst_reader->object_code=-1;
+		}
+		lst_reader=lst_reader->prev;
 	}
-	
+	return 0;
 }
 
 void AddLstNode(int haslabel,int iscomment,int locctr,int argc,char str[],char asm_argv[][ARGV_MAX_LEN],int inst_size){
@@ -266,7 +321,7 @@ void AddLstNode(int haslabel,int iscomment,int locctr,int argc,char str[],char a
 	if(label_idx!=-1)strcpy(newnode->label,asm_argv[label_idx]);
 	if(mnemonic_idx!=-1)strcpy(newnode->mnemonic,asm_argv[mnemonic_idx]);
 	for(int i=0;i<operandnum;i++)
-		strcpy(newnode->operand,asm_argv[operand_idx+i]);
+		strcpy(newnode->operand[i],asm_argv[operand_idx+i]);
 	newnode->next=LstList;
 	if(LstList!=NULL)
 		LstList->prev=newnode;
@@ -321,9 +376,11 @@ int InsertSymbol(char label[],int locctr){
 	return 0;
 }
 SymbolNode* FindSymbol(char label[]){
-	for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next)
+	for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next){
 		if(strcmp(label,temp->str)==0)
 			return temp;
+	} 
+	return NULL;
 }
 void EraseLstList(LstNode* thislist){
 	LstNode* tmp=thislist;
@@ -367,4 +424,24 @@ void InitSymTab(){
 	InsertSymbol("S",4);
 	InsertSymbol("T",5);
 	InsertSymbol("F",6);
+}
+int SetAddressingMode(LstNode* lst_reader){
+		int nixbpe=0;
+		if(lst_reader->operand_num>1)
+			if((lst_reader->operand)[1][0]=='X')
+				nixbpe=nixbpe|INDEX_MODE;			//index address x=1 else x=0
+
+		if((lst_reader->operand)[0][0]=='#')
+			nixbpe=nixbpe|IMMEDIATE_MODE;			// immediate addressing
+		else if((lst_reader->operand)[0][0]=='@')
+			nixbpe=nixbpe|INDIRECT_MODE;			// indirect addressing
+		else nixbpe=nixbpe|SIMPLE_MODE;				// simple addressing
+
+		if(lst_reader->format==3)nixbpe=nixbpe|FORMAT_3;
+		else nixbpe=nixbpe|FORMAT_4;
+		//pc relative disp(signed)// calculate memory range
+		//base disp(unsigned)
+		//direct disp(12bit)
+		//std sic(b,p,e is address field) n=0, i=0???????????????????
+		return nixbpe;
 }

@@ -52,6 +52,7 @@
 #define WRONG_OPERAND -6
 #define DUPLICATE_SYMBOL_ERROR -7
 #define MEMORY_ADDRESS_ERROR -8
+#define ERROR -10
 
 #define PC_MODE 2//pc relative 000'01'0 = 2
 #define BASE_MODE 4//base relative 000'10'0 = 4
@@ -169,7 +170,7 @@ void OpcodeList();														//	Pring Opcode Hash Table Linked List
 
 void TypeFile(char argv[][ARGV_MAX_LEN]);
 void AssembleFile(char argv[][ARGV_MAX_LEN]);
-int PassOne(FILE* fp,int* program_len, char program_name[]);
+int PassOne(FILE* fp,int* program_len, char program_name[],char base_name[]);
 int PassTwo();
 void AddLstNode(int haslabel, int iscomment,int locctr,int argc,char str[],char asm_argv[][ARGV_MAX_LEN],int inst_size);
 int InstructionMemorySize(char mnemonic[],char operand[]);
@@ -178,6 +179,8 @@ void InitSymTab();
 void PrintError(int flag);
 void EraseSymTab(SymbolNode* thislist);
 void EraseLstList(LstNode* thislist);
+SymbolNode* FindSymbol(char label[]);
+int SetAddressingMode(LstNode* lst_reader);
 
 
 
