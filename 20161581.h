@@ -52,7 +52,9 @@
 #define WRONG_OPERAND -6
 #define DUPLICATE_SYMBOL_ERROR -7
 #define MEMORY_ADDRESS_ERROR -8
-#define ERROR -10
+#define NO_BASE_ERROR -9
+#define WRONG_FORMAT_ERROR -10
+#define ERROR -20
 
 #define PC_MODE 2//pc relative 000'01'0 = 2
 #define BASE_MODE 4//base relative 000'10'0 = 4

@@ -168,11 +168,12 @@ int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[]){
 
 int PassTwo(char base_name[]){
 	SymbolNode* base_sym_node=FindSymbol(base_name);
-	char mnemonic[ARGV_MAX_LEN];
+	char mnemonic[ARGV_MAX_LEN]="";
 	int base_locctr;
 
-	if(base_sym_node!=NULL)base_locctr=base_sym_node->locctr;
-	else return ERROR;
+	if(base_sym_node!=NULL)
+		base_locctr=base_sym_node->locctr;
+	else return NO_BASE_ERROR;
 
 	LstNode* lst_reader=LstList;
 	while(lst_reader!=NULL){
@@ -189,7 +190,6 @@ int PassTwo(char base_name[]){
 		OpcodeNode* opnode=GetOpcodeNodeByMnemonic(mnemonic);
 		if(opnode==NULL&&strlen(mnemonic)!=0)
 			opnode=GetOpcodeNodeByMnemonic(mnemonic+1);
-		//printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 		if(strcmp("START",mnemonic)==0){
 			lst_reader->object_code=-1;
 		}
@@ -204,6 +204,8 @@ int PassTwo(char base_name[]){
 				nixbpe=SetAddressingMode(lst_reader);
 			int disp=0,pc_disp=0,base_disp=0;//disp=symbol-pc
 			SymbolNode* symbol[10];
+			for(int i=0;i<10;i++)
+				symbol[i]=NULL;
 			
 			for(int i=0;i<lst_reader->operand_num;i++){
 				symbol[i]=FindSymbol(lst_reader->operand[i]);
@@ -211,21 +213,21 @@ int PassTwo(char base_name[]){
 					symbol[i]=FindSymbol((lst_reader->operand[i])+1);
 					if(symbol[i]==NULL){
 						//if(!decimal)return error;
-						imm_val=atoi((lst_reader->operand[i])+1);
+						if((nixbpe&SIMPLE_MODE)==IMMEDIATE_MODE)
+							imm_val=atoi((lst_reader->operand[i])+1);
+						else return WRONG_OPERAND;
 					}
-					
 				}
 			}
 			if(lst_reader->format==3){
 				object_code=opnode->opcode;				//
 				object_code=object_code<<16;
-				//printf("nixbpe : %d\n",nixbpe);
 				if(imm_val!=-1)
 					disp=imm_val;
 				else{
-					for(int i=0;i<lst_reader->operand_num;i++){
-						pc_disp=(symbol[i]->locctr)-pc;
-						base_disp=(symbol[i]->locctr)-base_locctr;
+					if(symbol[0]!=NULL){
+						pc_disp=(symbol[0]->locctr)-pc;
+						base_disp=(symbol[0]->locctr)-base_locctr;
 						if(-2048<=pc_disp&&pc_disp<=2047){				//pc relative
 							if(pc_disp<0)
 								pc_disp+=4096;
@@ -235,12 +237,11 @@ int PassTwo(char base_name[]){
 						else if(0<=base_disp&&base_disp<=4095){
 							disp=base_disp;
 							nixbpe=nixbpe|BASE_MODE;
-						}
-							
+						}			
 						else
-							return ERROR;
-						//printf("disp : %x\n",disp);
+							return WRONG_FORMAT_ERROR;
 					}
+					else disp=0;
 				}
 				object_code=object_code|(nixbpe<<12);
 				lst_reader->object_code=object_code|disp;
@@ -264,7 +265,6 @@ int PassTwo(char base_name[]){
 					symbol[i]=FindSymbol(lst_reader->operand[i]);
 					/////////////immediate?
 				}
-				//printf("reg : %d\n",symbol[0]->locctr);
 				object_code=opnode->opcode;
 				object_code=(object_code<<8);
 				if(symbol[0]!=NULL)
@@ -279,9 +279,12 @@ int PassTwo(char base_name[]){
 		else{
 			//BYTE HAVE OBJECT_CODE
 			if(strcmp(mnemonic,"BYTE")==0){
+				if(lst_reader->operand[0]==NULL)
+					return WRONG_OPERAND;
 				if(lst_reader->operand[0][0]=='C'){
 					int i=0;
-					while(lst_reader->operand[0][2+i]!='\0'&&lst_reader->operand[0][2+i]!='\''){
+					int len=strlen(lst_reader->operand[0]);
+					while(i+2<len&&lst_reader->operand[0][2+i]!='\''){
 						object_code=object_code<<8;// hexa 2 digit
 						object_code=object_code|(lst_reader->operand)[0][2+i];
 						//printf("byte const : %c\n",lst_reader->operand[0][2+i]);
@@ -291,8 +294,9 @@ int PassTwo(char base_name[]){
 				}
 				else if(lst_reader->operand[0][0]=='X'){
 					int i=0;
-					char str[ARGV_MAX_LEN];
-					while(lst_reader->operand[0][2+i]!='\0'&&lst_reader->operand[0][2+i]!='\''){
+					int len=strlen(lst_reader->operand[0]);
+					char str[ARGV_MAX_LEN]="";
+					while(2+i<len&&lst_reader->operand[0][2+i]!='\''){
 						str[i]=lst_reader->operand[0][2+i];
 						i++;
 					}
