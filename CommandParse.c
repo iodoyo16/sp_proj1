@@ -363,3 +363,10 @@ void FuncExecute(int cmdcase, char argv[][ARGV_MAX_LEN],int argc) {
 		break;
 	}
 }
+void historypop(){
+	CmdHistoryNode*temp=CmdHistoryList;
+	if(CmdHistoryList!=NULL){
+		CmdHistoryList=CmdHistoryList->next;
+		free(temp);
+	}
+}

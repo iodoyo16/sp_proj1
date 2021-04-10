@@ -30,6 +30,7 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 		PrintError(err_flag);
 		LstList=prev_lst;
 		SymbolList=prev_symtab;
+		historypop();
 		return;
 	}
 	err_flag=PassTwo(base_name);
@@ -40,6 +41,7 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 		PrintError(err_flag);
 		LstList=prev_lst;
 		SymbolList=prev_symtab;
+		historypop();
 		return;
 	}
 	else{
@@ -59,6 +61,7 @@ void AssembleFile(char argv[][ARGV_MAX_LEN]){
 	fp=fopen(obj_file_name,"w");
 	WriteObjectfile(fp,LstList,program_name,start_address,program_len);
 	fclose(fp);
+	printf("[%s], [%s]\n",lst_file_name,obj_file_name);
 }
 int PassOne(FILE* fp,int* program_len, char program_name[], char base_name[], int* staddr){
 	//char program_name[ARGV_MAX_LEN];
@@ -221,7 +224,7 @@ int PassTwo(char base_name[]){
 					symbol[i]=FindSymbol((lst_reader->operand[i])+1);
 					if(symbol[i]==NULL){
 						//if(!decimal)return error;
-						if((nixbpe&SIMPLE_MODE)==IMMEDIATE_MODE)
+						if(((nixbpe&SIMPLE_MODE)==IMMEDIATE_MODE)&&isDecimal((lst_reader->operand[i])+1))
 							imm_val=atoi((lst_reader->operand[i])+1);
 						else{
 							printf("Line_num : %d. ",cnt);
@@ -248,6 +251,10 @@ int PassTwo(char base_name[]){
 						else if(0<=base_disp&&base_disp<=4095){
 							disp=base_disp;
 							nixbpe=nixbpe|BASE_MODE;
+						}
+						else if(0<=symbol[0]->locctr&&symbol[0]->locctr<=32767){
+							nixbpe=nixbpe|STD_MODE;
+							disp=symbol[0]->locctr;
 						}			
 						else{
 							printf("Line_num : %d. ",cnt);
@@ -271,15 +278,8 @@ int PassTwo(char base_name[]){
 				}
 				object_code=object_code|(nixbpe<<20);
 				lst_reader->object_code=object_code|disp;
-				//printf("disp : %d\n",disp);
 			}
-			else if(lst_reader->format==2){/*
-				for(int i=0;i<10;i++)
-					reg[i]=-1;
-				for(int i=0;i<lst_reader->operand_num;i++){
-					reg[i]=FindReg(lst_reader->operand[i]);
-					/////////////immediate?
-				}*/
+			else if(lst_reader->format==2){
 				object_code=opnode->opcode;
 				object_code=(object_code<<8);
 				if(symbol[0]!=NULL)
@@ -432,17 +432,8 @@ int InsertSymbol(char label[],int locctr){
 	else{
 		for(SymbolNode* temp=SymbolList;temp!=NULL;temp=temp->next){
 			if(strcmp(label,temp->str)==0){
-				if(strlen(label)==strlen(temp->str)){
-					free(newnode);
-					return 1;
-				}
-				else if(strlen(label)<strlen(temp->str)){
-					if(prev!=NULL)
-						prev->next=newnode;
-					else SymbolList=newnode;
-					newnode->next=temp;
-					break;
-				}
+				free(newnode);
+				return 1;
 			}
 			else if(strcmp(label,temp->str)<0){
 				if(prev!=NULL)
@@ -510,7 +501,7 @@ void PrintError(int flag){
 		printf("error\n");
 	}
 }
-void InitSymTab(char reg[]){
+void InitSymTab(){
 	InsertSymbol("A",0);
 	InsertSymbol("X",1);
 	InsertSymbol("L",2);
@@ -559,7 +550,7 @@ void WriteLstfile(FILE* fp,LstNode* thislist){
 		if(lst_reader->object_code==-1)
 			fprintf(fp,"\n");
 		else{
-			for(int i=strlen(lst_reader->str);i<30;i++)
+			for(int j=strlen(lst_reader->str);j<30;j++)
 				fprintf(fp," ");
 			int size=(lst_reader->format)*2;
 			if(size==2)fprintf(fp,"%02llX\n",lst_reader->object_code);
@@ -602,7 +593,14 @@ void WriteObjectfile(FILE* fp,LstNode* thislist,char program_name[],int start_ad
 		fprintf(fp,"T%06X%02X",lst_reader->locctr,size);
 		while(lst_reader!=NULL){
 			if(lst_reader->object_code!=-1){
-				fprintf(fp," %06llX ",lst_reader->object_code);
+				if(lst_reader->format==1)
+					fprintf(fp,"%02llX",lst_reader->object_code);
+				else if(lst_reader->format==2)
+					fprintf(fp,"%04llX",lst_reader->object_code);
+				else if(lst_reader->format==3)
+					fprintf(fp,"%06llX",lst_reader->object_code);
+				else if(lst_reader->format==4)
+					fprintf(fp,"%08llX",lst_reader->object_code);
 				size-=lst_reader->format;
 			}
 			lst_reader=lst_reader->prev;
@@ -621,8 +619,11 @@ int CountTextRecordSize(LstNode* head){
 	while(temp!=NULL){
 		if(size+temp->format<=30){
 			size+=temp->format;
-			if(temp->object_code==-1)
+			if(temp->object_code==-1){
 				varsize+=temp->format;
+				if(temp->format!=0)
+					return size-varsize;
+			}
 		}
 		else return size-varsize;
 		temp=temp->prev;
@@ -646,7 +647,7 @@ void PrintSymbol(){
 		printf("\t%s\t%04X\n",temp->str,temp->locctr);
 	}
 }
-int isReg(char str[]){/*
+int isReg(char str[]){
 	if(strcmp(str,"A")==0&&strlen(str)==1)return TRUE;
 	if(strcmp(str,"X")==0&&strlen(str)==1)return TRUE;
 	if(strcmp(str,"L")==0&&strlen(str)==1)return TRUE;
@@ -655,9 +656,6 @@ int isReg(char str[]){/*
 	if(strcmp(str,"B")==0&&strlen(str)==1)return TRUE;
 	if(strcmp(str,"S")==0&&strlen(str)==1)return TRUE;
 	if(strcmp(str,"T")==0&&strlen(str)==1)return TRUE;
-	if(strcmp(str,"F")==0&&strlen(str)==1)return TRUE;*/
+	if(strcmp(str,"F")==0&&strlen(str)==1)return TRUE;
 	return FALSE;
-}/*
-SymbolNode* FindOrder(SymbolNode* thislist,char label[]){
-
-}*/
+}

@@ -173,7 +173,7 @@ void OpcodeList();														//	Pring Opcode Hash Table Linked List
 void TypeFile(char argv[][ARGV_MAX_LEN]);
 void AssembleFile(char argv[][ARGV_MAX_LEN]);
 int PassOne(FILE* fp,int* program_len, char program_name[],char base_name[],int* start_address);
-int PassTwo();
+int PassTwo(char base_name[]);
 void AddLstNode(int haslabel, int iscomment,int locctr,int argc,char str[],char asm_argv[][ARGV_MAX_LEN],int inst_size);
 int InstructionMemorySize(char mnemonic[],char operand[]);
 int InsertSymbol(char label[],int locctr);
@@ -189,5 +189,6 @@ int CountTextRecordSize(LstNode* head);
 int isDecimal(char str[]);
 void PrintSymbol();
 int isReg(char str[]);
+void historypop();
 ///getopcode by mnemonic->get opnodebymnemonic
 ///cmdparser
