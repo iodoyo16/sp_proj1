@@ -56,19 +56,19 @@
 #define WRONG_FORMAT_ERROR -10
 #define ERROR -20
 
-#define PC_MODE 2//pc relative 000'01'0 = 2
-#define BASE_MODE 4//base relative 000'10'0 = 4
-#define DIRECT_MODE 0//direct relative 000'00'0 = 0
+#define PC_MODE 2			//pc relative 000'01'0 = 2
+#define BASE_MODE 4			//base relative 000'10'0 = 4
+#define DIRECT_MODE 0		//direct relative 000'00'0 = 0
 
-#define INDEX_MODE 8//index mode 00'1'000 =8
+#define INDEX_MODE 8		//index mode 00'1'000 =8
 
-#define IMMEDIATE_MODE 16//immediate '01'0000=16
-#define INDIRECT_MODE 32//indirect '10'0000=32
-#define SIMPLE_MODE 48//simple '11'0000=48
-#define STD_MODE 0//standard sic '00'0000 *bpe is address field
+#define IMMEDIATE_MODE 16	//immediate '01'0000=16
+#define INDIRECT_MODE 32	//indirect '10'0000=32
+#define SIMPLE_MODE 48		//simple '11'0000=48
+#define STD_MODE 0			//standard sic '00'0000 *bpe is address field
 
-#define FORMAT_3 0// format 3 00000'0'
-#define FORMAT_4 1// format 4 00000'1'
+#define FORMAT_3 0			// format 3 00000'0'
+#define FORMAT_4 1			// format 4 00000'1'
 
 
 
@@ -170,25 +170,23 @@ OpcodeNode* GetOpcodeNodeByMnemonic(char mnemonic[]);								//	Find opcode that
 void OpcodeList();														//	Pring Opcode Hash Table Linked List
 
 
-void TypeFile(char argv[][ARGV_MAX_LEN]);
-void AssembleFile(char argv[][ARGV_MAX_LEN]);
-int PassOne(FILE* fp,int* program_len, char program_name[],char base_name[],int* start_address);
-int PassTwo(char base_name[]);
-void AddLstNode(int haslabel, int iscomment,int locctr,int argc,char str[],char asm_argv[][ARGV_MAX_LEN],int inst_size);
-int InstructionMemorySize(char mnemonic[],char operand[]);
+void TypeFile(char argv[][ARGV_MAX_LEN]);				// type file
+void AssembleFile(char argv[][ARGV_MAX_LEN]);			// pass1 pass2 writelst writeobj
+int PassOne(FILE* fp,int* program_len, char program_name[],char base_name[],int* start_address); // set locctr and construct symtab
+int PassTwo(char base_name[]);																	// set object code
+void AddLstNode(int haslabel, int iscomment,int locctr,int argc,char str[],char asm_argv[][ARGV_MAX_LEN],int inst_size);//inser node to lstlist
+int InstructionMemorySize(char mnemonic[],char operand[]);		// caculate instruction size
 int InsertSymbol(char label[],int locctr);
-void InitSymTab();
-void PrintError(int flag);
-void EraseSymTab(SymbolNode* thislist);
-void EraseLstList(LstNode* thislist);
-SymbolNode* FindSymbol(char label[]);
-int SetAddressingMode(LstNode* lst_reader);
+void InitSymTab();							// insert register name in symtab
+void PrintError(int flag);					// print error line depends on err_flag value
+void EraseSymTab(SymbolNode* thislist);		// delete symbol table and free memory
+void EraseLstList(LstNode* thislist);		// delete LstList and free memory
+SymbolNode* FindSymbol(char label[]);		// get matched symbol 
+int SetAddressingMode(LstNode* lst_reader);		// set n,i,x,e of nixbpe 
 void WriteLstfile(FILE* fp,LstNode* thislist);
 void WriteObjectfile(FILE* fp,LstNode* thislist,char program_name[],int start_address,int program_len);
-int CountTextRecordSize(LstNode* head);
+int CountTextRecordSize(LstNode* head); // count size of objectcode of this text records line
 int isDecimal(char str[]);
 void PrintSymbol();
-int isReg(char str[]);
-void historypop();
-///getopcode by mnemonic->get opnodebymnemonic
-///cmdparser
+int isReg(char str[]);			// check this string is matched with register name
+void historypop();				// pop recent history

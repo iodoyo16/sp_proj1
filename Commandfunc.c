@@ -129,8 +129,10 @@ void Reset() {
 void TypeFile( char argv[][ARGV_MAX_LEN]){
 	int ch;
 	FILE* fp=fopen(argv[1],"r");
-	if(fp==NULL)
+	if(fp==NULL){
+		printf("fileopen error\n");
 		return;
+	}
 	while(1){
 		ch = fgetc(fp);
 		if(feof(fp)!=0)
