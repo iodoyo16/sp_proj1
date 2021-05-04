@@ -13,8 +13,8 @@ void Run(){
     int err_flag;
     if(program_loaded==TRUE){
         if(newload==TRUE){
-            loaded_program_len=reg[PC];
-            program_start_address=reg[L];
+            loaded_program_len=reg[L];
+            program_start_address=reg[PC];
             newload=FALSE;
         }
         while(reg[PC]<loaded_program_len+program_start_address){    // before end of program
@@ -32,7 +32,7 @@ void Run(){
         }
         printReg();
         printf("		End Program\n");
-        Init_run(loaded_program_len,program_start_address);
+        Init_run(program_start_address,loaded_program_len);
     }
     else{
         printf("Program is not loaded\n");
