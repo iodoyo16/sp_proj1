@@ -158,7 +158,11 @@ void BP(int argc, char argv[][ARGV_MAX_LEN] ){
 			for(int i=0;i<break_point_num;i++)
 				breakpoint[i]=-1;
 			break_point_num=0;
-			printf("		[ok] clear all breakpoints\n");
+			printf("		[");
+			printf("%c[1;32m",27);
+			printf("ok");
+			printf("%c[0m",27);
+			printf("] clear all breakpoints\n");
 		}
 		else{
 			int bp_loc=strtol(argv[1], NULL, 16);
@@ -169,7 +173,11 @@ void BP(int argc, char argv[][ARGV_MAX_LEN] ){
 						duplicated_bp=TRUE;
 				if(duplicated_bp==FALSE)
 					breakpoint[break_point_num++]=bp_loc;
-				printf("		[ok] create breakpoint %X\n",bp_loc);
+				printf("		[");
+				printf("%c[1;32m",27);
+				printf("ok");
+				printf("%c[0m",27);
+				printf("] create breakpoint %X\n",bp_loc);
 			}
 			else{
 				printf("too many breakpoints!\n");

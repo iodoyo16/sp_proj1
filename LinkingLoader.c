@@ -42,7 +42,7 @@ void Loader(int argc, char argv[][ARGV_MAX_LEN]){
     loaded_program_len=0;
     for(int i=0;i<argc-1;i++)
         loaded_program_len+=control_section_len[i];
-    Init_run(execaddr,loaded_program_len);
+    Init_run(progaddr,loaded_program_len);
 }
 int LoadPassOne(FILE* fp_arr[],int filenum){
     int csaddr=progaddr;

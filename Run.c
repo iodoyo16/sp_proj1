@@ -24,7 +24,7 @@ void Run(){
                 return ;
             }
             for(int i=0;i<break_point_num;i++)
-                if(reg[PC]==breakpoint[i]){
+                if(reg[PC]==breakpoint[i]+progaddr){
                     printReg();
                     printf("		Stop at checkpoint[%X]\n",breakpoint[i]);
                     return;
