@@ -219,20 +219,20 @@ void historypop();				// pop recent history
 
 
 
-void Loader(int argc, char argv[][ARGV_MAX_LEN]);
-int LoadPassOne(FILE* fp_arr[],int filenum);
-int LoadPassTwo(FILE* fp_arr[],int filenum);
-void ExtractSymbolName(char symbol_name[], char input[],int maxlen);
-void AddExternalSymbol(int file_i, char symbol_name[], int address);
-void printEstab(int file_num);
-void EraseEstab(int file_num);
-int ModifyAddress(int address,int ref_address,char operation);
-EstabNode* getEstabNodebySymbol(char symbol_name[],int filenum);
+void Loader(int argc, char argv[][ARGV_MAX_LEN]);						// load program to memory
+int LoadPassOne(FILE* fp_arr[],int filenum);							// construct Estab
+int LoadPassTwo(FILE* fp_arr[],int filenum);							// load objectcode to memory and modify it
+void ExtractSymbolName(char symbol_name[], char input[],int maxlen);	// get symbol name from file input
+void AddExternalSymbol(int file_i, char symbol_name[], int address);	// add external symbol to estable
+void printEstab(int file_num);											
+void EraseEstab(int file_num);											
+int ModifyAddress(int address,int ref_address,char operation);			// modify object code
+EstabNode* getEstabNodebySymbol(char symbol_name[],int filenum);		// search Estable node by symbol
 
-void Init_run(int program_start_address, int loaded_program_len);
+void Init_run(int program_start_address, int loaded_program_len);		// load is done, ready to run
 void printReg();
-int RunInstruction();
+int RunInstruction();		// Run one instruction
 void Run();
-void SetSW(unsigned int reg1, unsigned int reg2);
+void SetSW(unsigned int reg1, unsigned int reg2);	// Set SW reg
 unsigned int ReferencingMemory(int address);
 void StoretoMemory(int address, int value, int size);

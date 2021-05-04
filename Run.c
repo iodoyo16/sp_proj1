@@ -1,6 +1,6 @@
 #include "20161581.h"
-int reg[15];
-int cur_inst;
+int reg[15];        // register
+int cur_inst;       // fetched instruciton
 int loaded_program_len=0;
 int program_start_address=0;
 enum regnum{A=0,X=1,L=2,B=3,S=4,T=5,F=6,PC=8,SW=9};
@@ -8,17 +8,7 @@ enum opnum{
     TIXR=0xB8,COMPR=0xA0,CLEAR=0xB4,
     STL=0x14,LDB=0x68,LDA=0x00,COMP=0x28,JEQ=0x30,J=0x3C,STA=0x0C,LDT=0x74,
     TD=0xE0,RD=0xD8,STCH=0x54,JLT=0x38,STX=0x10,RSUB=0x4C,LDCH=0x50,WD=0xDC,
-    JSUB=0x48};/*
-void GetMnemonicByOpcode(int opcode) {
-	for(int i=0;i<TABLE_SIZE;i++){
-        OpcodeNode* curnode=HashTable[i];
-        while (curnode != NULL) {									//	tour the list and return the opcode value
-		if (curnode->opcode==opcode)
-			printf("%s", curnode->mnemonic);
-		curnode = curnode->next;
-	    }
-    }
-}*/
+    JSUB=0x48};
 void Run(){
     int err_flag;
     if(program_loaded==TRUE){
@@ -27,7 +17,7 @@ void Run(){
             program_start_address=reg[L];
             newload=FALSE;
         }
-        while(reg[PC]<loaded_program_len+program_start_address){
+        while(reg[PC]<loaded_program_len+program_start_address){    // before end of program
             err_flag=RunInstruction(reg[PC]);
             if(err_flag<0){
                 printf("Instruction execution error!\n");
@@ -36,12 +26,12 @@ void Run(){
             for(int i=0;i<break_point_num;i++)
                 if(reg[PC]==breakpoint[i]){
                     printReg();
-                    printf("    Stop at checkpoint[%X]\n",breakpoint[i]);
+                    printf("		Stop at checkpoint[%X]\n",breakpoint[i]);
                     return;
                 }
         }
         printReg();
-        printf("    End program\n");
+        printf("		End Program\n");
         Init_run(loaded_program_len,program_start_address);
     }
     else{
@@ -71,7 +61,7 @@ int RunInstruction(){
     unsigned int opcode=opcode_ni-ni;
     unsigned int second_byte=memory_arr[(reg[PC]+1)/16][(reg[PC]+1)%16];
     unsigned int xbpe=second_byte/16;
-    switch(opcode){
+    switch(opcode){                     // check format
         case TIXR:
         case COMPR:
         case CLEAR:
@@ -84,10 +74,7 @@ int RunInstruction(){
                 format=3;
             break;
     }
-    cur_inst=reg[PC];
-    //for(int i=0;i<format;i++)
-        //printf("%02X ",memory_arr[(cur_inst+i)/16][(cur_inst+i)%16]);
-    //printf("\n");
+    cur_inst=reg[PC];               //instruction fetch
     if(opcode_ni==0){
         reg[PC]++;
         return 1;
@@ -108,16 +95,11 @@ int RunInstruction(){
             reg[reg1]=0;
             break;
         }
-        //printReg();
-        //GetMnemonicByOpcode(opcode);
-        //printf(" reg1: %02X reg2 %02X format: %d\n\n",reg1, reg2,format);
         return 1;
     }
     else if(format==3){
         int disp=0;
         disp=((second_byte%16)<<8)|memory_arr[(cur_inst+2)/16][(cur_inst+2)%16];
-        //printf("\nsecondbyte val: %X\n",second_byte);
-        //printf("disp val: %06X\n",disp);
         address=0;
         switch(xbpe&14){
             case 0: address=(unsigned int)disp;
@@ -172,11 +154,11 @@ int RunInstruction(){
                 break;
             case 3:                 //simple
             if(opcode!=LDCH)
-                val=ReferencingMemory(address);//////////////format 4
+                val=ReferencingMemory(address);
             break;
         }
     }
-    switch(opcode){
+    switch(opcode){                 // do operation
         case STL:
         StoretoMemory(address,reg[L],3);
         break;
@@ -229,14 +211,13 @@ int RunInstruction(){
         if(reg[SW]=='<')
             reg[PC]=address;
         break;
-        
-        
+
         case RSUB:
         reg[PC]=reg[L];
         break;
 
         case LDCH:
-        reg[A]=(reg[A]&0xffffff00)|memory_arr[address/16][address%16];
+        reg[A]=(reg[A]&0xffffff00)|memory_arr[address/16][address%16];  //A(right most byte)<-(m)
         break;
 
         case WD:
@@ -247,9 +228,6 @@ int RunInstruction(){
         reg[PC]=address;
         break;
         }
-    //printReg();
-    //GetMnemonicByOpcode(opcode);
-    //printf(" val: %X address %X format: %d xbpe: %X\n\n",val, address,format,xbpe);
     return 1;
 }
 void SetSW(unsigned int reg1, unsigned int reg2){
